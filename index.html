@@ -523,6 +523,52 @@
     .cancel-btn:hover {
       background: #e0e0e0;
     }
+    
+    /* Interrupteur moderne */
+    .modern-toggle {
+      display: inline-block;
+      cursor: pointer;
+      position: relative;
+      width: 50px;
+      height: 26px;
+    }
+    
+    .modern-toggle input {
+      display: none;
+    }
+    
+    .toggle-slider {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      border-radius: 26px;
+      transition: 0.3s;
+      box-shadow: inset 0 1px 3px rgba(0,0,0,0.12);
+    }
+    
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 22px;
+      width: 22px;
+      left: 2px;
+      bottom: 2px;
+      background-color: white;
+      border-radius: 50%;
+      transition: 0.3s;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    
+    input:checked + .toggle-slider {
+      background-color: #667eea;
+    }
+    
+    input:checked + .toggle-slider:before {
+      transform: translateX(24px);
+    }
   </style>
 </head>
 <body>
@@ -567,6 +613,83 @@
               <button class="preset-btn" data-preset="une" style="grid-column: 1 / -1;">
                 📰 Une de presse<div class="preset-dimensions">750×992</div>
               </button>
+            </div>
+          </div>
+          
+          <div>
+            <button id="customPresetToggle" style="width: 100%; padding: 12px 16px; background: white; border: 1.5px solid #e5e7eb; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 500; color: #374151; transition: all 0.2s ease; text-align: left;">
+              📐 Personnalisé <span style="float: right; color: #9ca3af;">▼</span>
+            </button>
+            
+            <!-- Paramètres personnalisés cachés par défaut -->
+            <div id="customDimensionsPanel" style="display: none; padding: 12px; background: #f9fafb; border: 1.5px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px; margin-top: -4px;">
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
+                <div>
+                  <label style="font-size: 12px; color: #6b7280; display: block; margin-bottom: 4px;">Largeur (px)</label>
+                  <input type="number" id="customWidth" value="1920" min="100" max="8000" style="width: 100%; padding: 8px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 13px;">
+                </div>
+                <div>
+                  <label style="font-size: 12px; color: #6b7280; display: block; margin-bottom: 4px;">Hauteur (px)</label>
+                  <input type="number" id="customHeight" value="1080" min="100" max="8000" style="width: 100%; padding: 8px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 13px;">
+                </div>
+              </div>
+              <button id="customApplyBtn" style="width: 100%; padding: 10px; background: #10b981; color: white; border: none; border-radius: 6px; font-weight: 500; font-size: 13px; cursor: pointer; transition: all 0.2s ease;">✓ Appliquer</button>
+            </div>
+          </div>
+          
+          <!-- Onglet Effets dépliable -->
+          <div>
+            <button id="effectsToggle" style="width: 100%; padding: 12px 16px; background: white; border: 1.5px solid #e5e7eb; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 500; color: #374151; transition: all 0.2s ease; text-align: left;">
+              ✨ Effets <span style="float: right; color: #9ca3af;">▼</span>
+            </button>
+            
+            <!-- Contenu des effets (caché par défaut) -->
+            <div id="effectsPanel" style="display: none; padding: 12px; background: #f9fafb; border: 1.5px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px; margin-top: -4px;">
+              
+              <!-- Ombre portée -->
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; padding: 10px; background: white; border-radius: 6px; border: 1px solid #e5e7eb;">
+                <label style="font-size: 12px; font-weight: 500; color: #374151; cursor: pointer; user-select: none;">🌑 Ombre portée</label>
+                <label class="modern-toggle">
+                  <input type="checkbox" id="shadowToggleCheckbox" style="display: none;">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+              
+              <!-- Contrôles d'ombre portée (cachés par défaut) -->
+              <div id="shadowControlsPanel" style="display: none; padding: 10px; background: white; border: 1px solid #e5e7eb; border-radius: 6px; margin-bottom: 12px;">
+                <div style="margin-bottom: 10px;">
+                  <label style="font-size: 12px; color: #6b7280; display: block; margin-bottom: 4px;">Opacité</label>
+                  <input type="range" id="shadowOpacitySlider" min="0" max="1" step="0.1" value="0.3" style="width: 100%; cursor: pointer;">
+                  <div style="font-size: 11px; color: #9ca3af; margin-top: 2px;">Valeur: <span id="opacityValue">30</span>%</div>
+                </div>
+                <div style="margin-bottom: 10px;">
+                  <label style="font-size: 12px; color: #6b7280; display: block; margin-bottom: 4px;">Direction (°)</label>
+                  <input type="range" id="shadowDirectionSlider" min="0" max="360" step="15" value="180" style="width: 100%; cursor: pointer;">
+                  <div style="font-size: 11px; color: #9ca3af; margin-top: 2px;">Valeur: <span id="directionValue">180</span>°</div>
+                </div>
+                <div>
+                  <label style="font-size: 12px; color: #6b7280; display: block; margin-bottom: 4px;">Distance (px)</label>
+                  <input type="range" id="shadowDistanceSlider" min="0" max="20" step="1" value="4" style="width: 100%; cursor: pointer;">
+                  <div style="font-size: 11px; color: #9ca3af; margin-top: 2px;">Valeur: <span id="distanceValue">4</span>px</div>
+                </div>
+              </div>
+              
+              <!-- Flou d'arrière-plan -->
+              <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px; background: white; border-radius: 6px; border: 1px solid #e5e7eb;">
+                <label style="font-size: 12px; font-weight: 500; color: #374151; cursor: pointer; user-select: none;">💨 Flou d'arrière-plan</label>
+                <label class="modern-toggle">
+                  <input type="checkbox" id="backgroundBlurCheckbox" style="display: none;">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+              
+              <!-- Contrôles du flou d'arrière-plan (cachés par défaut) -->
+              <div id="backgroundBlurControlsPanel" style="display: none; padding: 10px; background: white; border: 1px solid #e5e7eb; border-radius: 6px; margin-top: 10px;">
+                <label style="font-size: 12px; color: #6b7280; display: block; margin-bottom: 4px;">Intensité du flou (px)</label>
+                <input type="range" id="backgroundBlurSlider" min="0" max="50" step="1" value="15" style="width: 100%; cursor: pointer;">
+                <div style="font-size: 11px; color: #9ca3af; margin-top: 2px;">Valeur: <span id="blurValue">15</span>px</div>
+              </div>
+              
             </div>
           </div>
           
@@ -616,13 +739,13 @@
         <button class="close-btn" id="closeModal">&times;</button>
       </div>
       
-      <div style="display: grid; grid-template-columns: 1fr 150px; gap: 16px; margin-bottom: 16px; align-items: end;">
+      <div style="display: grid; grid-template-columns: 1fr 120px; gap: 16px; margin-bottom: 16px; align-items: center;">
         <div style="font-size: 12px; color: #666;">
           Glissez pour repositionner • Zoom pour ajuster
         </div>
-        <div class="crop-control">
-          <label>Zoom</label>
-          <input type="range" id="zoomSlider" min="0.5" max="3" step="0.1" value="1" style="width: 100%; margin: 0;">
+        <div class="crop-control" style="display: flex; gap: 8px; align-items: center;">
+          <input type="range" id="zoomSlider" min="50" max="300" step="1" value="100" style="flex: 1; cursor: pointer; height: 6px;">
+          <span id="zoomValue" style="font-size: 12px; color: #374151; font-weight: 500; width: 40px; text-align: right;">100%</span>
         </div>
       </div>
       
@@ -636,8 +759,65 @@
         </div>
       </div>
       
-      <div id="modalPreview" style="width: 100%; background: #f0f0f0; border: 2px solid #ddd; border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center; cursor: grab; margin-bottom: 16px; padding: 20px;">
-        <canvas id="modalPreviewCanvas" style="max-width: 100%; max-height: 500px; display: block;"></canvas>
+      <div id="modalPreview" style="width: 100%; background: #f0f0f0; border: 2px solid #ddd; border-radius: 8px 8px 0 0; overflow: visible; display: flex; align-items: center; justify-content: center; cursor: grab; padding: 20px; position: relative;">
+        <!-- Cadre de redimensionnement exact (dimensions du preset) -->
+        <div id="dimensionFrame" style="border: 2px solid #667eea; border-radius: 4px; background: transparent; position: absolute; z-index: 100; pointer-events: none;"></div>
+        <div style="position: relative;">
+          <canvas id="modalPreviewCanvas" style="display: block;"></canvas>
+        </div>
+      </div>
+      
+      <!-- Barre d'outils en dessous de l'image -->
+      <div style="background: #f9fafb; border: 2px solid #ddd; border-top: none; border-radius: 0 0 8px 8px; padding: 12px; display: flex; gap: 8px; align-items: center; margin-bottom: 16px; flex-wrap: wrap;">
+        <button id="toggleGuidesBtn" style="padding: 6px 10px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: 500; white-space: nowrap;">👁️ ON</button>
+        
+        <!-- Bouton menu Effets -->
+        <button id="modalEffectsToggle" style="padding: 6px 10px; background: white; color: #374151; border: 1.5px solid #e5e7eb; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: 500; white-space: nowrap;">✨ Effets ▼</button>
+        
+        <!-- Menu Effets dépliable -->
+        <div id="modalEffectsMenu" style="display: none; position: absolute; background: white; border: 1.5px solid #e5e7eb; border-radius: 6px; padding: 12px; width: 300px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1000; margin-top: 40px;">
+          
+          <!-- Ombre portée -->
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; padding: 10px; background: #f9fafb; border-radius: 6px; border: 1px solid #e5e7eb;">
+            <label style="font-size: 12px; font-weight: 500; color: #374151; cursor: pointer; user-select: none;">🌑 Ombre portée</label>
+            <label class="modern-toggle">
+              <input type="checkbox" id="modalShadowToggleCheckbox" style="display: none;">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          
+          <!-- Contrôles d'ombre (cachés par défaut) -->
+          <div id="modalShadowControlsSection" style="display: none; padding: 10px; background: white; border: 1px solid #e5e7eb; border-radius: 6px; margin-bottom: 12px;">
+            <div style="margin-bottom: 8px;">
+              <label style="font-size: 10px; color: #6b7280; display: block; margin-bottom: 2px;">Opacité</label>
+              <input type="range" id="modalShadowOpacitySlider" min="0" max="1" step="0.1" value="0.3" style="width: 100%; cursor: pointer; height: 4px;">
+            </div>
+            <div style="margin-bottom: 8px;">
+              <label style="font-size: 10px; color: #6b7280; display: block; margin-bottom: 2px;">Direction</label>
+              <input type="range" id="modalShadowDirectionSlider" min="0" max="360" step="15" value="180" style="width: 100%; cursor: pointer; height: 4px;">
+            </div>
+            <div>
+              <label style="font-size: 10px; color: #6b7280; display: block; margin-bottom: 2px;">Distance</label>
+              <input type="range" id="modalShadowDistanceSlider" min="0" max="20" step="1" value="4" style="width: 100%; cursor: pointer; height: 4px;">
+            </div>
+          </div>
+          
+          <!-- Flou d'arrière-plan -->
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px; background: #f9fafb; border-radius: 6px; border: 1px solid #e5e7eb;">
+            <label style="font-size: 12px; font-weight: 500; color: #374151; cursor: pointer; user-select: none;">💨 Flou d'arrière-plan</label>
+            <label class="modern-toggle">
+              <input type="checkbox" id="modalBackgroundBlurCheckbox" style="display: none;">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          
+          <!-- Contrôles du flou d'arrière-plan (cachés par défaut) -->
+          <div id="modalBackgroundBlurControlsSection" style="display: none; padding: 10px; background: white; border: 1px solid #e5e7eb; border-radius: 6px; margin-top: 10px;">
+            <label style="font-size: 10px; color: #6b7280; display: block; margin-bottom: 4px;">Intensité du flou (px)</label>
+            <input type="range" id="modalBackgroundBlurSlider" min="0" max="50" step="1" value="15" style="width: 100%; cursor: pointer; height: 4px;">
+          </div>
+          
+        </div>
       </div>
       
       <div class="modal-buttons">
@@ -684,17 +864,22 @@
     const saveBtn = document.getElementById('saveBtn');
     const zoomSlider = document.getElementById('zoomSlider');
     const modalPreviewCanvas = document.getElementById('modalPreviewCanvas');
-    const modalPreviewCtx = modalPreviewCanvas.getContext('2d');
+    const modalPreviewCtx = modalPreviewCanvas ? modalPreviewCanvas.getContext('2d') : null;
 
     let selectedFiles = [];
     let currentPreset = '1920x1080';
     let editingIndex = -1;
     let cropData = {};
     let imagePresets = {}; // Preset de chaque image individuellement
+    let imageShadowSettings = {}; // Paramètres d'ombre personnels par image
+    let imageBackgroundBlurSettings = {}; // Paramètres de flou d'arrière-plan par image
+    let shadowEnabled = false; // Ombre activée ou non globalement
+    let backgroundBlurEnabled = false; // Flou d'arrière-plan activé ou non globalement
+    let backgroundBlurAmount = 15; // Intensité du flou d'arrière-plan
     let selectedIndices = new Set(); // Images sélectionnées pour appliquer le preset
     let currentImage = null;
     let originalImageSrc = null; // Image originale non modifiée
-    let presetDimensions = { '1920x1080': { w: 1920, h: 1080 }, '1080x1920': { w: 1080, h: 1920 }, 'blur': { w: 1920, h: 1080 }, 'une': { w: 750, h: 992 } };
+    let presetDimensions = { '1920x1080': { w: 1920, h: 1080 }, '1080x1920': { w: 1080, h: 1920 }, 'blur': { w: 1920, h: 1080 }, 'une': { w: 750, h: 992 }, 'custom': { w: 1920, h: 1080 } };
 
     // Boutons de sélection
     fileSelectBtn.addEventListener('click', () => {
@@ -707,6 +892,70 @@
 
     fileInput.addEventListener('change', (e) => handleFiles(Array.from(e.target.files)));
     folderInput.addEventListener('change', (e) => handleFiles(Array.from(e.target.files)));
+
+    // Listener pour le preset personnalisé
+    function applyCustomPreset() {
+      const width = parseInt(document.getElementById('customWidth').value);
+      const height = parseInt(document.getElementById('customHeight').value);
+      
+      if (!width || !height || width < 100 || height < 100) {
+        alert('Veuillez entrer des dimensions valides (min 100px)');
+        return;
+      }
+      
+      // Mettre à jour les dimensions personnalisées
+      presetDimensions['custom'] = { w: width, h: height };
+      currentPreset = 'custom';
+      
+      // Déterminer quelles images mettre à jour
+      const indicesToUpdate = selectedIndices.size > 0 ? Array.from(selectedIndices) : [...Array(selectedFiles.length).keys()];
+      
+      // Mettre à jour les images sélectionnées
+      indicesToUpdate.forEach(index => {
+        if (selectedIndices.size > 0) {
+          imagePresets[index] = 'custom';
+        }
+        updateGalleryBoxRatio(index);
+        updateGalleryPreview(index);
+      });
+    }
+
+    // Toggle pour afficher/cacher le panel
+    document.getElementById('customPresetToggle').addEventListener('click', () => {
+      const panel = document.getElementById('customDimensionsPanel');
+      const toggle = document.getElementById('customPresetToggle');
+      
+      if (panel.style.display === 'none') {
+        panel.style.display = 'block';
+        toggle.style.borderBottomLeftRadius = '0';
+        toggle.style.borderBottomRightRadius = '0';
+        toggle.style.background = '#3b82f6';
+        toggle.style.color = 'white';
+        toggle.style.borderColor = '#3b82f6';
+        
+        // Désélectionner les autres présets
+        presetBtns.forEach(b => b.classList.remove('active'));
+      } else {
+        panel.style.display = 'none';
+        toggle.style.borderBottomLeftRadius = '8px';
+        toggle.style.borderBottomRightRadius = '8px';
+        toggle.style.background = 'white';
+        toggle.style.color = '#374151';
+        toggle.style.borderColor = '#e5e7eb';
+      }
+    });
+    
+    // Bouton Appliquer
+    document.getElementById('customApplyBtn').addEventListener('click', applyCustomPreset);
+    
+    // Appliquer aussi à l'entrée (Entrée)
+    document.getElementById('customWidth').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') applyCustomPreset();
+    });
+    
+    document.getElementById('customHeight').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') applyCustomPreset();
+    });
 
     function handleFiles(files) {
       // Nettoyer les anciennes données en mémoire
@@ -760,6 +1009,10 @@
           let ratio = '16/9'; // par défaut
           if (presetKey === '1080x1920') ratio = '9/16';
           else if (presetKey === 'une') ratio = '750/992';
+          else if (presetKey === 'custom') {
+            const dims = presetDimensions['custom'];
+            ratio = `${dims.w}/${dims.h}`;
+          }
           
           const previewBox = document.createElement('div');
           previewBox.style.cssText = `aspect-ratio: ${ratio}; background: #f0f0f0; border-radius: 8px; overflow: hidden; border: 2px solid #ddd; cursor: pointer; transition: all 0.3s ease; max-height: 200px; position: relative;`;
@@ -790,9 +1043,7 @@
             } else {
               // Click normal - éditer l'image
               editingIndex = index;
-              originalImageSrc = imageDataUrl; // Utiliser la donnée stockée
-              updatePreviewForIndex(index);
-              openCropEditor();
+              updatePreviewForIndex(index);  // Charge l'image et ouvre l'éditeur
             }
           });
           
@@ -821,8 +1072,10 @@
             const height = dims.h;
             const useBlur = presetKey === 'blur';
             const cropSettings = cropData[index] || {};
+            const shadowSettings = getImageShadowSettings(index);
+            const backgroundBlurSettings = getImageBackgroundBlurSettings(index);
             
-            img.src = renderImage(imgObject, width, height, useBlur, cropSettings);
+            img.src = renderImage(imgObject, width, height, useBlur, cropSettings, shadowSettings, backgroundBlurSettings);
           };
           imgObject.src = e.target.result;
         };
@@ -831,12 +1084,13 @@
     }
 
     function updatePreviewForIndex(index) {
-      // Cette fonction n'est plus nécessaire - sauvegarder juste originalImageSrc pour l'éditeur
+      // Charger l'image et ouvrir l'éditeur quand c'est prêt
       if (index < 0 || index >= selectedFiles.length) return;
       
       const reader = new FileReader();
       reader.onload = (e) => {
         originalImageSrc = e.target.result;
+        openCropEditor();  // Ouvrir l'éditeur après le chargement
       };
       reader.readAsDataURL(selectedFiles[index]);
     }
@@ -846,7 +1100,29 @@
       return imagePresets[index] !== undefined ? imagePresets[index] : currentPreset;
     }
 
-    function renderImage(img, width, height, useBlur, cropSettings) {
+    function getImageShadowSettings(index) {
+      // Retourner les paramètres d'ombre de l'image seulement si l'ombre est activée globalement
+      if (!shadowEnabled) return null;
+      return imageShadowSettings[index] || { opacity: 0.3, direction: 180, distance: 4 };
+    }
+    
+    function getImageShadowSettingsForEditing(index) {
+      // Toujours retourner les paramètres pour l'édition, même si désactivés globalement
+      return imageShadowSettings[index] || { opacity: 0.3, direction: 180, distance: 4 };
+    }
+
+    function getImageBackgroundBlurSettings(index) {
+      // Retourner les paramètres de flou d'arrière-plan seulement si activé globalement
+      if (!backgroundBlurEnabled) return null;
+      return imageBackgroundBlurSettings[index] || { blur: 15 };
+    }
+    
+    function getImageBackgroundBlurSettingsForEditing(index) {
+      // Toujours retourner les paramètres pour l'édition
+      return imageBackgroundBlurSettings[index] || { blur: 15 };
+    }
+
+    function renderImage(img, width, height, useBlur, cropSettings, shadowSettings, backgroundBlurSettings) {
       const canvas = document.createElement('canvas');
       const c = canvas.getContext('2d');
       canvas.width = width;
@@ -870,9 +1146,30 @@
         const x = (width - displayWidth) / 2 + offsetX;
         const y = (height - displayHeight) / 2 + offsetY;
         
+        // Ajouter l'ombre personnalisée si définie
+        if (shadowSettings) {
+          const radians = (shadowSettings.direction * Math.PI) / 180;
+          const shadowOffsetX = Math.cos(radians) * shadowSettings.distance;
+          const shadowOffsetY = Math.sin(radians) * shadowSettings.distance;
+          
+          c.shadowColor = `rgba(0, 0, 0, ${shadowSettings.opacity})`;
+          c.shadowBlur = 15;
+          c.shadowOffsetX = shadowOffsetX;
+          c.shadowOffsetY = shadowOffsetY;
+        }
+        
         c.drawImage(img, x, y, displayWidth, displayHeight);
+        c.shadowColor = 'transparent';
       } else {
         // Mode normal - crop intelligent
+        
+        // Ajouter le flou d'arrière-plan si défini
+        if (backgroundBlurSettings) {
+          c.filter = `blur(${backgroundBlurSettings.blur}px)`;
+          c.drawImage(img, 0, 0, width, height);
+          c.filter = 'none';
+        }
+        
         const targetRatio = width / height;
         const sourceRatio = img.width / img.height;
         
@@ -895,9 +1192,6 @@
         sourceX += (sourceW - displaySourceW) / 2 - (offsetX / zoom);
         sourceY += (sourceH - displaySourceH) / 2 - (offsetY / zoom);
         
-        sourceX = Math.max(0, Math.min(img.width - displaySourceW, sourceX));
-        sourceY = Math.max(0, Math.min(img.height - displaySourceH, sourceY));
-        
         c.drawImage(img, sourceX, sourceY, displaySourceW, displaySourceH, 0, 0, width, height);
       }
       
@@ -914,6 +1208,16 @@
         presetBtns.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         currentPreset = btn.dataset.preset;
+        
+        // Désélectionner le panneau personnalisé
+        const panel = document.getElementById('customDimensionsPanel');
+        const toggle = document.getElementById('customPresetToggle');
+        panel.style.display = 'none';
+        toggle.style.background = 'white';
+        toggle.style.color = '#374151';
+        toggle.style.borderColor = '#e5e7eb';
+        toggle.style.borderBottomLeftRadius = '8px';
+        toggle.style.borderBottomRightRadius = '8px';
         
         // Déterminer quelles images mettre à jour
         const indicesToUpdate = selectedIndices.size > 0 ? Array.from(selectedIndices) : [...Array(selectedFiles.length).keys()];
@@ -937,6 +1241,33 @@
       img.onload = () => {
         const data = cropData[editingIndex] || { zoom: 1, offsetX: 0, offsetY: 0 };
         zoomSlider.value = data.zoom;
+        
+        // Charger les états globaux depuis la page principale
+        const shadowToggle = document.getElementById('shadowToggleCheckbox');
+        const backgroundBlurToggle = document.getElementById('backgroundBlurCheckbox');
+        
+        if (shadowToggle) {
+          shadowToggle.checked = shadowEnabled;
+        }
+        if (backgroundBlurToggle) {
+          backgroundBlurToggle.checked = backgroundBlurEnabled;
+        }
+        
+        // Charger les interrupteurs du modal aussi
+        const modalShadowToggle = document.getElementById('modalShadowToggleCheckbox');
+        const modalBackgroundBlurToggle = document.getElementById('modalBackgroundBlurCheckbox');
+        
+        if (modalShadowToggle) {
+          modalShadowToggle.checked = shadowEnabled;
+          const controlsSection = document.getElementById('modalShadowControlsSection');
+          if (controlsSection) controlsSection.style.display = shadowEnabled ? 'block' : 'none';
+        }
+        if (modalBackgroundBlurToggle) {
+          modalBackgroundBlurToggle.checked = backgroundBlurEnabled;
+          const controlsSection = document.getElementById('modalBackgroundBlurControlsSection');
+          if (controlsSection) controlsSection.style.display = backgroundBlurEnabled ? 'block' : 'none';
+        }
+        
         drawModalPreview(); // Afficher la preview finale
         cropModal.classList.add('show');
       };
@@ -944,7 +1275,7 @@
     }
 
     function drawModalPreview() {
-      if (!currentImage) return;
+      if (!currentImage || !modalPreviewCanvas || !modalPreviewCtx) return;
       
       const img = new Image();
       img.onload = () => {
@@ -953,17 +1284,72 @@
         const width = dims.w;
         const height = dims.h;
         
+        // Charger les paramètres d'ombre de cette image
+        const shadowSettings = getImageShadowSettingsForEditing(editingIndex);
+        if (shadowSettings) {
+          shadowOpacity = shadowSettings.opacity;
+          shadowDirection = shadowSettings.direction;
+          shadowDistance = shadowSettings.distance;
+        }
+        
+        // Charger les paramètres du flou d'arrière-plan de cette image
+        const backgroundBlurSettings = getImageBackgroundBlurSettingsForEditing(editingIndex);
+        if (backgroundBlurSettings) {
+          backgroundBlurAmount = backgroundBlurSettings.blur;
+        }
+        
+        // Mettre à jour les sliders modaux et bouton ombre (seulement s'ils existent)
+        const opacitySlider = document.getElementById('modalShadowOpacitySlider');
+        if (opacitySlider) opacitySlider.value = shadowOpacity;
+        
+        const directionSlider = document.getElementById('modalShadowDirectionSlider');
+        if (directionSlider) directionSlider.value = shadowDirection;
+        
+        const distanceSlider = document.getElementById('modalShadowDistanceSlider');
+        if (distanceSlider) distanceSlider.value = shadowDistance;
+        
+        // Mettre à jour le slider du flou d'arrière-plan
+        const backgroundBlurSlider = document.getElementById('modalBackgroundBlurSlider');
+        if (backgroundBlurSlider) backgroundBlurSlider.value = backgroundBlurAmount;
+        
+        // Afficher/cacher le bouton ombre et les contrôles selon shadowEnabled
+        const shadowBtn = document.getElementById('toggleShadowBtn');
+        if (shadowBtn) shadowBtn.style.display = shadowEnabled ? 'block' : 'none';
+        
+        const shadowControls = document.getElementById('modalShadowControls');
+        if (shadowControls) shadowControls.style.display = shadowEnabled ? 'flex' : 'none';
+        
         // Dimensionner le canvas pour garder le ratio exact sans étirement
         const maxHeight = 500; // Hauteur max
         const ratio = width / height;
         modalPreviewCanvas.height = maxHeight;
         modalPreviewCanvas.width = maxHeight * ratio;
         
+        // Dimensionner le cadre de redimensionnement à la même taille que le canvas
+        const dimensionFrame = document.getElementById('dimensionFrame');
+        dimensionFrame.style.width = modalPreviewCanvas.width + 'px';
+        dimensionFrame.style.height = modalPreviewCanvas.height + 'px';
+        
+        // Positionner le cadre au centre (même position que le canvas)
+        const modalPreview = document.getElementById('modalPreview');
+        const frameLeft = (modalPreview.offsetWidth - modalPreviewCanvas.width) / 2;
+        const frameTop = (modalPreview.offsetHeight - modalPreviewCanvas.height) / 2;
+        dimensionFrame.style.left = frameLeft + 'px';
+        dimensionFrame.style.top = frameTop + 'px';
+        
         // Vider le canvas
         modalPreviewCtx.clearRect(0, 0, modalPreviewCanvas.width, modalPreviewCanvas.height);
         
         const useBlur = presetKey === 'blur';
         const { zoom = 1, offsetX = 0, offsetY = 0 } = cropData[editingIndex] || {};
+        
+        // Mettre à jour le zoom slider
+        if (zoomSlider) {
+          const percentValue = Math.round(zoom * 100);
+          zoomSlider.value = percentValue;
+          const zoomDisplay = document.getElementById('zoomValue');
+          if (zoomDisplay) zoomDisplay.textContent = percentValue + '%';
+        }
         
         if (useBlur) {
           // Mode flou
@@ -982,9 +1368,33 @@
           const x = (modalPreviewCanvas.width - displayWidth * scale) / 2 + offsetX * scale;
           const y = (modalPreviewCanvas.height - displayHeight * scale) / 2 + offsetY * scale;
           
+          // Ajouter ombre portée seulement si activée
+          if (shadowEnabled) {
+            // Calculer les valeurs de décalage selon la direction et la distance
+            const radians = (shadowDirection * Math.PI) / 180;
+            const shadowOffsetX = Math.cos(radians) * shadowDistance;
+            const shadowOffsetY = Math.sin(radians) * shadowDistance;
+            
+            modalPreviewCtx.shadowColor = `rgba(0, 0, 0, ${shadowOpacity})`;
+            modalPreviewCtx.shadowBlur = 15;
+            modalPreviewCtx.shadowOffsetX = shadowOffsetX;
+            modalPreviewCtx.shadowOffsetY = shadowOffsetY;
+          }
+          
           modalPreviewCtx.drawImage(img, x, y, displayWidth * scale, displayHeight * scale);
+          
+          // Retirer l'ombre pour les autres dessins
+          modalPreviewCtx.shadowColor = 'transparent';
         } else {
           // Mode normal
+          
+          // Ajouter le flou d'arrière-plan si activé
+          if (backgroundBlurEnabled && backgroundBlurAmount > 0) {
+            modalPreviewCtx.filter = `blur(${backgroundBlurAmount}px)`;
+            modalPreviewCtx.drawImage(img, 0, 0, modalPreviewCanvas.width, modalPreviewCanvas.height);
+            modalPreviewCtx.filter = 'none';
+          }
+          
           const targetRatio = width / height;
           const sourceRatio = img.width / img.height;
           
@@ -1007,10 +1417,89 @@
           sourceX += (sourceW - displaySourceW) / 2 - (offsetX / zoom);
           sourceY += (sourceH - displaySourceH) / 2 - (offsetY / zoom);
           
-          sourceX = Math.max(0, Math.min(img.width - displaySourceW, sourceX));
-          sourceY = Math.max(0, Math.min(img.height - displaySourceH, sourceY));
+          // Stocker les valeurs pour le calcul des guides
+          window.lastNormalModeData = { sourceX, sourceY, displaySourceW, displaySourceH, sourceW, sourceH, offsetX, offsetY, zoom };
+          
+          // Ajouter l'ombre portée en mode normal aussi
+          if (shadowEnabled) {
+            const radians = (shadowDirection * Math.PI) / 180;
+            const shadowOffsetX = Math.cos(radians) * shadowDistance;
+            const shadowOffsetY = Math.sin(radians) * shadowDistance;
+            
+            modalPreviewCtx.shadowColor = `rgba(0, 0, 0, ${shadowOpacity})`;
+            modalPreviewCtx.shadowBlur = 15;
+            modalPreviewCtx.shadowOffsetX = shadowOffsetX;
+            modalPreviewCtx.shadowOffsetY = shadowOffsetY;
+          }
           
           modalPreviewCtx.drawImage(img, sourceX, sourceY, displaySourceW, displaySourceH, 0, 0, modalPreviewCanvas.width, modalPreviewCanvas.height);
+          
+          modalPreviewCtx.shadowColor = 'transparent';
+        }
+        
+        // Dessiner les guides de centrage (lignes)
+        // Calculer la position du centre de l'image affichée
+        let imageCenterX = 0;
+        let imageCenterY = 0;
+        
+        if (useBlur) {
+          const sourceRatio = img.width / img.height;
+          const baseHeight = height;
+          const baseWidth = baseHeight * sourceRatio;
+          const displayWidth = baseWidth * zoom;
+          const displayHeight = baseHeight * zoom;
+          const scale = modalPreviewCanvas.width / width;
+          const x = (modalPreviewCanvas.width - displayWidth * scale) / 2 + offsetX * scale;
+          const y = (modalPreviewCanvas.height - displayHeight * scale) / 2 + offsetY * scale;
+          
+          imageCenterX = x + (displayWidth * scale) / 2;
+          imageCenterY = y + (displayHeight * scale) / 2;
+        } else {
+          // Mode normal - calculer le centre basé sur l'offset
+          const data = window.lastNormalModeData;
+          if (data) {
+            // Le centre du contenu visible est décalé par offsetX et offsetY
+            const centerOffsetX = -(data.offsetX / data.zoom);
+            const centerOffsetY = -(data.offsetY / data.zoom);
+            
+            // Le canvas est centré, donc le centre visuel est au centre du canvas
+            // mais décalé par l'offset de l'utilisateur
+            imageCenterX = modalPreviewCanvas.width / 2 - (centerOffsetX / data.displaySourceW) * modalPreviewCanvas.width;
+            imageCenterY = modalPreviewCanvas.height / 2 - (centerOffsetY / data.displaySourceH) * modalPreviewCanvas.height;
+          }
+        }
+        
+        const centerX = modalPreviewCanvas.width / 2;
+        const centerY = modalPreviewCanvas.height / 2;
+        
+        // Seuil de tolérance pour considérer comme centré (10 pixels)
+        const tolerance = 10;
+        const isCenteredX = Math.abs(imageCenterX - centerX) < tolerance;
+        const isCenteredY = Math.abs(imageCenterY - centerY) < tolerance;
+        
+        // Dessiner les guides seulement s'ils sont activés
+        if (showGuides) {
+          // Ligne verticale au centre
+          modalPreviewCtx.strokeStyle = isCenteredX ? 'rgba(34, 197, 94, 1)' : 'rgba(255, 255, 255, 0.5)'; // Vert si centré, blanc sinon
+          modalPreviewCtx.lineWidth = isCenteredX ? 2 : 1;
+          modalPreviewCtx.setLineDash(isCenteredX ? [] : [5, 5]); // Plein si centré, pointillés sinon
+          
+          modalPreviewCtx.beginPath();
+          modalPreviewCtx.moveTo(centerX, 0);
+          modalPreviewCtx.lineTo(centerX, modalPreviewCanvas.height);
+          modalPreviewCtx.stroke();
+          
+          // Ligne horizontale au centre
+          modalPreviewCtx.strokeStyle = isCenteredY ? 'rgba(34, 197, 94, 1)' : 'rgba(255, 255, 255, 0.5)'; // Vert si centré, blanc sinon
+          modalPreviewCtx.lineWidth = isCenteredY ? 2 : 1;
+          modalPreviewCtx.setLineDash(isCenteredY ? [] : [5, 5]); // Plein si centré, pointillés sinon
+          
+          modalPreviewCtx.beginPath();
+          modalPreviewCtx.moveTo(0, centerY);
+          modalPreviewCtx.lineTo(modalPreviewCanvas.width, centerY);
+          modalPreviewCtx.stroke();
+          
+          modalPreviewCtx.setLineDash([]); // Retirer les pointillés
         }
       };
       img.src = currentImage;
@@ -1018,12 +1507,19 @@
 
     let isDragging = false;
     let dragStart = { x: 0, y: 0 };
+    let showGuides = true; // Guides activés de base
+    let showShadow = true; // Ombre activée de base
+    let shadowOpacity = 0.3; // Opacité de l'ombre
+    let shadowDirection = 180; // Direction de l'ombre (degrés)
+    let shadowDistance = 4; // Distance de l'ombre (pixels)
 
-    modalPreviewCanvas.addEventListener('mousedown', (e) => {
-      isDragging = true;
-      dragStart = { x: e.clientX, y: e.clientY };
-      modalPreviewCanvas.parentElement.style.cursor = 'grabbing';
-    });
+    if (modalPreviewCanvas) {
+      modalPreviewCanvas.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        dragStart = { x: e.clientX, y: e.clientY };
+        modalPreviewCanvas.parentElement.style.cursor = 'grabbing';
+      });
+    }
 
     document.addEventListener('mousemove', (e) => {
       if (!isDragging || editingIndex === -1) return;
@@ -1048,13 +1544,28 @@
     });
 
     zoomSlider.addEventListener('input', () => {
+      // Convertir 50-300 en 0.5-3 et afficher le pourcentage
+      const percentValue = parseInt(zoomSlider.value);
+      const zoomValue = percentValue / 100;
+      
       const data = cropData[editingIndex] || { zoom: 1, offsetX: 0, offsetY: 0 };
-      data.zoom = parseFloat(zoomSlider.value);
+      data.zoom = zoomValue;
       cropData[editingIndex] = data;
+      
+      // Mettre à jour l'affichage du pourcentage
+      const zoomDisplay = document.getElementById('zoomValue');
+      if (zoomDisplay) zoomDisplay.textContent = percentValue + '%';
       
       drawModalPreview();
       updateGalleryPreview(editingIndex);
     });
+    
+    // Initialiser l'affichage du zoom au chargement
+    if (zoomSlider) {
+      const percentValue = parseInt(zoomSlider.value);
+      const zoomDisplay = document.getElementById('zoomValue');
+      if (zoomDisplay) zoomDisplay.textContent = percentValue + '%';
+    }
 
     function updateGalleryPreview(index) {
       if (index < 0 || index >= selectedFiles.length) return;
@@ -1072,8 +1583,10 @@
           const height = dims.h;
           const useBlur = presetKey === 'blur';
           const cropSettings = cropData[index] || {};
+          const shadowSettings = getImageShadowSettings(index);
+          const backgroundBlurSettings = getImageBackgroundBlurSettings(index);
           
-          imgElement.src = renderImage(img, width, height, useBlur, cropSettings);
+          imgElement.src = renderImage(img, width, height, useBlur, cropSettings, shadowSettings, backgroundBlurSettings);
         };
         img.src = e.target.result;
       };
@@ -1089,7 +1602,11 @@
       let ratio = '16/9'; // par défaut
       
       if (presetKey === '1080x1920') ratio = '9/16';
-      else if (presetKey === 'une') ratio = '750/992'; // 3:4 approximativement
+      else if (presetKey === 'une') ratio = '750/992';
+      else if (presetKey === 'custom') {
+        const dims = presetDimensions['custom'];
+        ratio = `${dims.w}/${dims.h}`;
+      }
       
       box.style.aspectRatio = ratio;
     }
@@ -1104,59 +1621,330 @@
       editingIndex = -1;
     });
 
+    // Bouton Enregistrer
+    if (saveBtn) {
+      saveBtn.addEventListener('click', () => {
+        // Sauvegarder les paramètres d'ombre et de flou pour cette image
+        if (editingIndex >= 0) {
+          imageShadowSettings[editingIndex] = { opacity: shadowOpacity, direction: shadowDirection, distance: shadowDistance };
+          imageBackgroundBlurSettings[editingIndex] = { blur: backgroundBlurAmount };
+        }
+        
+        // Synchroniser les états globaux vers la page principale
+        const shadowToggle = document.getElementById('shadowToggleCheckbox');
+        if (shadowToggle) {
+          shadowToggle.checked = shadowEnabled;
+        }
+        const backgroundBlurToggle = document.getElementById('backgroundBlurCheckbox');
+        if (backgroundBlurToggle) {
+          backgroundBlurToggle.checked = backgroundBlurEnabled;
+        }
+        
+        cropModal.classList.remove('show');
+        editingIndex = -1;
+        // Redessiner la galerie avec les nouveaux paramètres
+        for (let i = 0; i < selectedFiles.length; i++) {
+          updateGalleryPreview(i);
+        }
+      });
+    }
+    // Bouton guides
+    const toggleGuidesBtn = document.getElementById('toggleGuidesBtn');
+    if (toggleGuidesBtn) {
+      toggleGuidesBtn.addEventListener('click', () => {
+        showGuides = !showGuides;
+        const btn = document.getElementById('toggleGuidesBtn');
+        if (btn) {
+          btn.textContent = showGuides ? '👁️ ON' : '👁️ OFF';
+          btn.style.background = showGuides ? '#667eea' : '#9ca3af';
+        }
+        drawModalPreview();
+      });
+    }
+
+    // Bouton ombre
+    const toggleShadowBtn = document.getElementById('toggleShadowBtn');
+    if (toggleShadowBtn) {
+      toggleShadowBtn.addEventListener('click', () => {
+        showShadow = !showShadow;
+        const btn = document.getElementById('toggleShadowBtn');
+        if (btn) {
+          btn.textContent = showShadow ? '🌑 ON' : '🌑 OFF';
+          btn.style.background = showShadow ? '#667eea' : '#9ca3af';
+        }
+        drawModalPreview();
+      });
+    }
+
+    // Toggle du menu Effets
+    const effectsToggle = document.getElementById('effectsToggle');
+    if (effectsToggle) {
+      effectsToggle.addEventListener('click', () => {
+        const panel = document.getElementById('effectsPanel');
+        const btn = document.getElementById('effectsToggle');
+        if (!panel || !btn) return;
+        const isOpen = panel.style.display !== 'none';
+        panel.style.display = isOpen ? 'none' : 'block';
+        const arrow = btn.querySelector('span');
+        if (arrow) {
+          arrow.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
+          arrow.style.transition = '0.2s';
+        }
+      });
+    }
+
+    // Toggle du menu Effets dans l'éditeur modal
+    const modalEffectsToggle = document.getElementById('modalEffectsToggle');
+    if (modalEffectsToggle) {
+      modalEffectsToggle.addEventListener('click', (e) => {
+        const menu = document.getElementById('modalEffectsMenu');
+        if (menu) menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+      });
+    }
+
+    // Fermer le menu Effets quand on clique ailleurs
+    document.addEventListener('click', (e) => {
+      const menu = document.getElementById('modalEffectsMenu');
+      const btn = document.getElementById('modalEffectsToggle');
+      if (!menu || !btn) return;
+      if (!menu.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
+        menu.style.display = 'none';
+      }
+    });
+
+    // Listeners pour les interrupteurs d'effets de la page principale
+    const shadowToggle = document.getElementById('shadowToggleCheckbox');
+    if (shadowToggle) {
+      shadowToggle.addEventListener('change', (e) => {
+        shadowEnabled = e.target.checked;
+        const controlsPanel = document.getElementById('shadowControlsPanel');
+        if (controlsPanel) controlsPanel.style.display = shadowEnabled ? 'block' : 'none';
+        // Redessiner tous les aperçus
+        for (let i = 0; i < selectedFiles.length; i++) {
+          updateGalleryPreview(i);
+        }
+      });
+    }
+
+    const backgroundBlurToggle = document.getElementById('backgroundBlurCheckbox');
+    if (backgroundBlurToggle) {
+      backgroundBlurToggle.addEventListener('change', (e) => {
+        backgroundBlurEnabled = e.target.checked;
+        const controlsPanel = document.getElementById('backgroundBlurControlsPanel');
+        if (controlsPanel) controlsPanel.style.display = backgroundBlurEnabled ? 'block' : 'none';
+        // Redessiner tous les aperçus
+        for (let i = 0; i < selectedFiles.length; i++) {
+          updateGalleryPreview(i);
+        }
+      });
+    }
+
+    // Ombre portée dans l'éditeur modal
+    const modalShadowToggle = document.getElementById('modalShadowToggleCheckbox');
+    if (modalShadowToggle) {
+      modalShadowToggle.addEventListener('change', (e) => {
+        const controlsSection = document.getElementById('modalShadowControlsSection');
+        if (controlsSection) controlsSection.style.display = e.target.checked ? 'block' : 'none';
+        shadowEnabled = e.target.checked;
+        drawModalPreview();
+      });
+    }
+
+    // Flou d'arrière-plan dans l'éditeur modal
+    const modalBackgroundBlurToggle = document.getElementById('modalBackgroundBlurCheckbox');
+    if (modalBackgroundBlurToggle) {
+      modalBackgroundBlurToggle.addEventListener('change', (e) => {
+        const controlsSection = document.getElementById('modalBackgroundBlurControlsSection');
+        if (controlsSection) controlsSection.style.display = e.target.checked ? 'block' : 'none';
+        backgroundBlurEnabled = e.target.checked;
+        drawModalPreview();
+      });
+    }
+
+    // Curseurs du flou d'arrière-plan dans l'éditeur modal
+    const modalBackgroundBlurSlider = document.getElementById('modalBackgroundBlurSlider');
+    if (modalBackgroundBlurSlider) {
+      modalBackgroundBlurSlider.addEventListener('input', (e) => {
+        backgroundBlurAmount = parseInt(e.target.value);
+        imageBackgroundBlurSettings[editingIndex] = { blur: backgroundBlurAmount };
+        drawModalPreview();
+      });
+    }
+
+    // Bouton ON/OFF ombre portée (interrupteur moderne)
+    // Curseur du flou d'arrière-plan
+    const backgroundBlurSlider = document.getElementById('backgroundBlurSlider');
+    if (backgroundBlurSlider) {
+      backgroundBlurSlider.addEventListener('input', (e) => {
+        backgroundBlurAmount = parseInt(e.target.value);
+        document.getElementById('blurValue').textContent = backgroundBlurAmount;
+        
+        // Sauvegarder pour TOUTES les images
+        for (let i = 0; i < selectedFiles.length; i++) {
+          imageBackgroundBlurSettings[i] = { blur: backgroundBlurAmount };
+          updateGalleryPreview(i);
+        }
+      });
+    }
+
+    // Curseurs d'ombre dans la page principale
+    const shadowOpacitySlider = document.getElementById('shadowOpacitySlider');
+    if (shadowOpacitySlider) {
+      shadowOpacitySlider.addEventListener('input', (e) => {
+        shadowOpacity = parseFloat(e.target.value);
+        document.getElementById('opacityValue').textContent = Math.round(shadowOpacity * 100);
+        // Sauvegarder pour TOUTES les images
+        for (let i = 0; i < selectedFiles.length; i++) {
+          if (!imageShadowSettings[i]) imageShadowSettings[i] = {};
+          imageShadowSettings[i].opacity = shadowOpacity;
+          if (!imageShadowSettings[i].direction) imageShadowSettings[i].direction = 180;
+          if (!imageShadowSettings[i].distance) imageShadowSettings[i].distance = 4;
+          updateGalleryPreview(i);
+        }
+      });
+    }
+
+    const shadowDirectionSlider = document.getElementById('shadowDirectionSlider');
+    if (shadowDirectionSlider) {
+      shadowDirectionSlider.addEventListener('input', (e) => {
+        shadowDirection = parseInt(e.target.value);
+        document.getElementById('directionValue').textContent = shadowDirection;
+        // Sauvegarder pour TOUTES les images
+        for (let i = 0; i < selectedFiles.length; i++) {
+          if (!imageShadowSettings[i]) imageShadowSettings[i] = {};
+          imageShadowSettings[i].direction = shadowDirection;
+          if (!imageShadowSettings[i].opacity) imageShadowSettings[i].opacity = 0.3;
+          if (!imageShadowSettings[i].distance) imageShadowSettings[i].distance = 4;
+          updateGalleryPreview(i);
+        }
+      });
+    }
+
+    const shadowDistanceSlider = document.getElementById('shadowDistanceSlider');
+    if (shadowDistanceSlider) {
+      shadowDistanceSlider.addEventListener('input', (e) => {
+        shadowDistance = parseInt(e.target.value);
+        document.getElementById('distanceValue').textContent = shadowDistance;
+        // Sauvegarder pour TOUTES les images
+        for (let i = 0; i < selectedFiles.length; i++) {
+          if (!imageShadowSettings[i]) imageShadowSettings[i] = {};
+          imageShadowSettings[i].distance = shadowDistance;
+          if (!imageShadowSettings[i].opacity) imageShadowSettings[i].opacity = 0.3;
+          if (!imageShadowSettings[i].direction) imageShadowSettings[i].direction = 180;
+          updateGalleryPreview(i);
+        }
+      });
+    }
+
+    // Curseurs d'ombre dans l'éditeur modal
+    const modalShadowOpacitySlider = document.getElementById('modalShadowOpacitySlider');
+    if (modalShadowOpacitySlider) {
+      modalShadowOpacitySlider.addEventListener('input', (e) => {
+        shadowOpacity = parseFloat(e.target.value);
+        imageShadowSettings[editingIndex] = { opacity: shadowOpacity, direction: shadowDirection, distance: shadowDistance };
+        drawModalPreview();
+      });
+    }
+
+    const modalShadowDirectionSlider = document.getElementById('modalShadowDirectionSlider');
+    if (modalShadowDirectionSlider) {
+      modalShadowDirectionSlider.addEventListener('input', (e) => {
+        shadowDirection = parseInt(e.target.value);
+        imageShadowSettings[editingIndex] = { opacity: shadowOpacity, direction: shadowDirection, distance: shadowDistance };
+        drawModalPreview();
+      });
+    }
+
+    const modalShadowDistanceSlider = document.getElementById('modalShadowDistanceSlider');
+    if (modalShadowDistanceSlider) {
+      modalShadowDistanceSlider.addEventListener('input', (e) => {
+        shadowDistance = parseInt(e.target.value);
+        imageShadowSettings[editingIndex] = { opacity: shadowOpacity, direction: shadowDirection, distance: shadowDistance };
+        drawModalPreview();
+      });
+    }
+
+    // Listeners des présets modaux
+    const presetH = document.getElementById('modalPresetHorizontal');
+    if (presetH) {
+      presetH.addEventListener('click', () => {
+        if (editingIndex < 0 || !currentImage) return;
+        imagePresets[editingIndex] = '1920x1080';
+        cropData[editingIndex] = { zoom: 1, offsetX: 0, offsetY: 0 };
+        if (zoomSlider) zoomSlider.value = 1;
+        dragStart = { x: 0, y: 0 };
+        isDragging = false;
+        updateGalleryBoxRatio(editingIndex);
+        drawModalPreview();
+        updateGalleryPreview(editingIndex);
+      });
+    }
+
+    const presetV = document.getElementById('modalPresetVertical');
+    if (presetV) {
+      presetV.addEventListener('click', () => {
+        if (editingIndex < 0 || !currentImage) return;
+        imagePresets[editingIndex] = '1080x1920';
+        cropData[editingIndex] = { zoom: 1, offsetX: 0, offsetY: 0 };
+        if (zoomSlider) zoomSlider.value = 1;
+        dragStart = { x: 0, y: 0 };
+        isDragging = false;
+        updateGalleryBoxRatio(editingIndex);
+        drawModalPreview();
+        updateGalleryPreview(editingIndex);
+      });
+    }
+
+    const presetBlur = document.getElementById('modalPresetBlur');
+    if (presetBlur) {
+      presetBlur.addEventListener('click', () => {
+        if (editingIndex < 0 || !currentImage) return;
+        imagePresets[editingIndex] = 'blur';
+        cropData[editingIndex] = { zoom: 1, offsetX: 0, offsetY: 0 };
+        if (zoomSlider) zoomSlider.value = 1;
+        dragStart = { x: 0, y: 0 };
+        isDragging = false;
+        updateGalleryBoxRatio(editingIndex);
+        drawModalPreview();
+        updateGalleryPreview(editingIndex);
+      });
+    }
+
+    const presetUne = document.getElementById('modalPresetUne');
+    if (presetUne) {
+      presetUne.addEventListener('click', () => {
+        if (editingIndex < 0 || !currentImage) return;
+        imagePresets[editingIndex] = 'une';
+        cropData[editingIndex] = { zoom: 1, offsetX: 0, offsetY: 0 };
+        if (zoomSlider) zoomSlider.value = 1;
+        dragStart = { x: 0, y: 0 };
+        isDragging = false;
+        updateGalleryBoxRatio(editingIndex);
+        drawModalPreview();
+        updateGalleryPreview(editingIndex);
+      });
+    }
+
+    // Navigation par flèches dans l'éditeur modal
+    document.addEventListener('keydown', (e) => {
+      if (cropModal.classList.contains('show') && editingIndex >= 0) {
+        if (e.key === 'ArrowRight' && editingIndex < selectedFiles.length - 1) {
+          e.preventDefault();
+          editingIndex++;
+          originalImageSrc = null;
+          updatePreviewForIndex(editingIndex);
+          openCropEditor();
+        } else if (e.key === 'ArrowLeft' && editingIndex > 0) {
+          e.preventDefault();
+          editingIndex--;
+          originalImageSrc = null;
+          updatePreviewForIndex(editingIndex);
+          openCropEditor();
+        }
+      }
+    });
+
     // Boutons de présets dans la modal d'édition
-    document.getElementById('modalPresetHorizontal').addEventListener('click', () => {
-      if (editingIndex < 0 || !currentImage) return;
-      imagePresets[editingIndex] = '1920x1080';
-      cropData[editingIndex] = { zoom: 1, offsetX: 0, offsetY: 0 };
-      zoomSlider.value = 1;
-      dragStart = { x: 0, y: 0 };
-      isDragging = false;
-      updateGalleryBoxRatio(editingIndex);
-      drawModalPreview();
-      updateGalleryPreview(editingIndex);
-    });
-
-    document.getElementById('modalPresetVertical').addEventListener('click', () => {
-      if (editingIndex < 0 || !currentImage) return;
-      imagePresets[editingIndex] = '1080x1920';
-      cropData[editingIndex] = { zoom: 1, offsetX: 0, offsetY: 0 };
-      zoomSlider.value = 1;
-      dragStart = { x: 0, y: 0 };
-      isDragging = false;
-      updateGalleryBoxRatio(editingIndex);
-      drawModalPreview();
-      updateGalleryPreview(editingIndex);
-    });
-
-    document.getElementById('modalPresetBlur').addEventListener('click', () => {
-      if (editingIndex < 0 || !currentImage) return;
-      imagePresets[editingIndex] = 'blur';
-      cropData[editingIndex] = { zoom: 1, offsetX: 0, offsetY: 0 };
-      zoomSlider.value = 1;
-      dragStart = { x: 0, y: 0 };
-      isDragging = false;
-      updateGalleryBoxRatio(editingIndex);
-      drawModalPreview();
-      updateGalleryPreview(editingIndex);
-    });
-
-    document.getElementById('modalPresetUne').addEventListener('click', () => {
-      if (editingIndex < 0 || !currentImage) return;
-      imagePresets[editingIndex] = 'une';
-      cropData[editingIndex] = { zoom: 1, offsetX: 0, offsetY: 0 };
-      zoomSlider.value = 1;
-      dragStart = { x: 0, y: 0 };
-      isDragging = false;
-      updateGalleryBoxRatio(editingIndex);
-      drawModalPreview();
-      updateGalleryPreview(editingIndex);
-    });
-
-    saveBtn.addEventListener('click', () => {
-      cropModal.classList.remove('show');
-      editingIndex = -1;
-    });
 
     clearBtn.addEventListener('click', () => {
       // Nettoyer la mémoire des images
@@ -1209,7 +1997,9 @@
           
           // Utiliser les données de crop de chaque image individuellement
           const cropSettings = cropData[i] || { zoom: 1, offsetX: 0, offsetY: 0 };
-          const resized = await resizeImage(selectedFiles[i], width, height, format, useBlur, cropSettings);
+          const shadowSettings = getImageShadowSettings(i);
+          const backgroundBlurSettings = getImageBackgroundBlurSettings(i);
+          const resized = await resizeImage(selectedFiles[i], width, height, format, useBlur, cropSettings, shadowSettings, backgroundBlurSettings);
           const filename = selectedFiles[i].name.split('.').slice(0, -1).join('.') + '.' + format;
           zip.file(filename, resized, { binary: true });
           
@@ -1245,13 +2035,13 @@
       resizeBtn.disabled = false;
     });
 
-    function resizeImage(file, width, height, format, useBlur, cropSettings) {
+    function resizeImage(file, width, height, format, useBlur, cropSettings, shadowSettings, backgroundBlurSettings) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = (e) => {
           const img = new Image();
           img.onload = () => {
-            const dataUrl = renderImage(img, width, height, useBlur, cropSettings);
+            const dataUrl = renderImage(img, width, height, useBlur, cropSettings, shadowSettings, backgroundBlurSettings);
             
             // Convertir le data URL en blob
             fetch(dataUrl)
@@ -1271,6 +2061,7 @@
       status.className = type;
       status.style.display = 'block';
     }
-  </script>
+  
+    </script>
 </body>
 </html>
