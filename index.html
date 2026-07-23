@@ -753,6 +753,8 @@
       selectedFiles.forEach((file, index) => {
         const reader = new FileReader();
         reader.onload = (e) => {
+          const imageDataUrl = e.target.result; // Stocker ici
+          
           // Déterminer le ratio basé sur le preset
           const presetKey = getImagePreset(index);
           let ratio = '16/9'; // par défaut
@@ -772,10 +774,10 @@
           previewBox.appendChild(img);
           previewBox.appendChild(checkbox);
           
-          previewBox.addEventListener('click', (e) => {
-            if (e.ctrlKey || e.metaKey) {
+          previewBox.addEventListener('click', (clickEvent) => {
+            if (clickEvent.ctrlKey || clickEvent.metaKey) {
               // Sélection multiple avec Ctrl/Cmd
-              e.stopPropagation();
+              clickEvent.stopPropagation();
               if (selectedIndices.has(index)) {
                 selectedIndices.delete(index);
                 checkbox.style.display = 'none';
@@ -788,7 +790,7 @@
             } else {
               // Click normal - éditer l'image
               editingIndex = index;
-              originalImageSrc = e.target.result || img.src;
+              originalImageSrc = imageDataUrl; // Utiliser la donnée stockée
               updatePreviewForIndex(index);
               openCropEditor();
             }
