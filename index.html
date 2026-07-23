@@ -1,0 +1,1274 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Redimensionner Images</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px;
+    }
+    
+    .container {
+      background: white;
+      border-radius: 12px;
+      padding: 40px;
+      max-width: 100%;
+      width: 100%;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+      height: 95vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    h1 {
+      font-size: 32px;
+      font-weight: 700;
+      color: #1a1f36;
+      margin-bottom: 8px;
+      text-align: center;
+      letter-spacing: -0.5px;
+    }
+    
+    .subtitle {
+      text-align: center;
+      color: #6b7280;
+      margin-bottom: 32px;
+      font-size: 15px;
+      font-weight: 400;
+    }
+    
+    #fileInput, #folderInput {
+      display: none;
+    }
+    
+    .upload-section {
+      margin-bottom: 24px;
+    }
+    
+    #dropZone {
+      border: 2px dashed #d1d5db;
+      border-radius: 10px;
+      padding: 56px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      background: #f9fafb;
+    }
+    
+    #dropZone:hover {
+      background: #f3f4f6;
+      border-color: #9ca3af;
+    }
+    
+    #dropZone.dragover {
+      background: #eff6ff;
+      border-color: #3b82f6;
+      transform: scale(1.01);
+    }
+    
+    .drop-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+    
+    .drop-text {
+      font-size: 17px;
+      font-weight: 600;
+      color: #1f2937;
+      margin-bottom: 8px;
+    }
+    
+    .drop-subtext {
+      font-size: 14px;
+      color: #6b7280;
+      line-height: 1.6;
+    }
+    
+    .main-content {
+      display: none;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+    }
+    
+    .main-content.show {
+      display: flex;
+    }
+    
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      gap: 24px;
+      flex: 1;
+      min-height: 0;
+    }
+    
+    .preview-section {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      overflow-y: auto;
+    }
+    
+    .preview-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 8px;
+    }
+    
+    .live-preview {
+      width: 100%;
+      background: #f0f0f0;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      overflow: hidden;
+      position: relative;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 200px;
+    }
+    
+    .live-preview.ratio-16-9 {
+      aspect-ratio: 16 / 9;
+    }
+    
+    .live-preview.ratio-9-16 {
+      aspect-ratio: 9 / 16;
+    }
+    
+    .live-preview img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    
+    .live-preview:hover {
+      border-color: #667eea;
+      box-shadow: 0 0 12px rgba(102, 126, 234, 0.3);
+    }
+    
+    .live-preview-hint {
+      position: absolute;
+      bottom: 8px;
+      right: 8px;
+      background: rgba(0, 0, 0, 0.6);
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    
+    .live-preview:hover .live-preview-hint {
+      opacity: 1;
+    }
+    
+    .settings-section {
+      background: #f9fafb;
+      padding: 20px;
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      overflow-y: auto;
+      max-height: 100%;
+      border: 1px solid #e5e7eb;
+    }
+    
+    .settings-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #1f2937;
+    }
+    
+    .preset-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    
+    .preset-btn {
+      padding: 12px 16px;
+      background: white;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      color: #374151;
+      transition: all 0.2s ease;
+      text-align: center;
+    }
+    
+    .preset-btn:hover {
+      border-color: #3b82f6;
+      background: #eff6ff;
+      color: #1f2937;
+    }
+    
+    .preset-btn.active {
+      border-color: #3b82f6;
+      background: #3b82f6;
+      color: white;
+    }
+    
+    .preset-dimensions {
+      font-size: 11px;
+      opacity: 0.7;
+      margin-top: 4px;
+    }
+    
+    .format-select {
+      padding: 10px 12px;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: inherit;
+      background: white;
+      color: #374151;
+    }
+    
+    .file-list {
+      background: #f9fafb;
+      padding: 16px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+    }
+    
+    .file-count {
+      font-size: 13px;
+      font-weight: 500;
+      color: #333;
+      margin-bottom: 12px;
+    }
+    
+    .files {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 150px;
+      overflow-y: auto;
+    }
+    
+    .file-item {
+      padding: 8px;
+      background: #f5f5f5;
+      border-radius: 6px;
+      font-size: 12px;
+      color: #666;
+      display: flex;
+      justify-content: space-between;
+    }
+    
+    .file-name {
+      font-weight: 500;
+      color: #333;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex: 1;
+    }
+    
+    .file-size {
+      color: #999;
+      white-space: nowrap;
+      margin-left: 8px;
+    }
+    
+    .buttons {
+      display: flex;
+      gap: 12px;
+    }
+    
+    button {
+      flex: 1;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    #resizeBtn {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      display: none;
+    }
+    
+    #resizeBtn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+    
+    #resizeBtn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    
+    #clearBtn {
+      background: #f3f4f6;
+      color: #6b7280;
+      display: none;
+      border: 1px solid #e5e7eb;
+    }
+    
+    #clearBtn:hover {
+      background: #e5e7eb;
+      color: #374151;
+    }
+    
+    #progress {
+      display: none;
+      margin-bottom: 24px;
+    }
+    
+    .progress-text {
+      font-size: 13px;
+      font-weight: 500;
+      color: #374151;
+      margin-bottom: 8px;
+    }
+    
+    .progress-bar-bg {
+      height: 6px;
+      background: #e5e7eb;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    
+    #progressBar {
+      height: 100%;
+      background: #3b82f6;
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+    
+    #status {
+      padding: 16px;
+      border-radius: 8px;
+      display: none;
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 24px;
+    }
+    
+    #status.success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    
+    #status.error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    
+    .info-box {
+      background: #f0f2ff;
+      border-left: 4px solid #667eea;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 11px;
+      color: #666;
+      line-height: 1.4;
+      margin-bottom: 12px;
+    }
+    
+    /* Modal */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.7);
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .modal.show {
+      display: flex;
+    }
+    
+    .modal-content {
+      background-color: white;
+      border-radius: 16px;
+      padding: 20px;
+      max-width: 90vw;
+      width: 90%;
+      max-height: 95vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+    
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    
+    .modal-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: #333;
+    }
+    
+    .close-btn {
+      background: none;
+      border: none;
+      font-size: 28px;
+      cursor: pointer;
+      color: #999;
+      padding: 0;
+      width: 32px;
+      height: 32px;
+    }
+    
+    .close-btn:hover {
+      color: #333;
+    }
+    
+    .crop-canvas-container {
+      width: 100%;
+      height: 350px;
+      background: #f0f0f0;
+      border-radius: 8px;
+      overflow: hidden;
+      position: relative;
+      margin-bottom: 16px;
+      border: 2px solid #ddd;
+    }
+    
+    #cropCanvas {
+      width: 100%;
+      height: 100%;
+      cursor: grab;
+    }
+    
+    #cropCanvas:active {
+      cursor: grabbing;
+    }
+    
+    .crop-control {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    
+    .crop-control label {
+      font-size: 13px;
+      font-weight: 500;
+      color: #333;
+    }
+    
+    .crop-control input {
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 13px;
+    }
+    
+    .modal-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    
+    .modal-buttons button {
+      padding: 12px;
+      font-size: 14px;
+    }
+    
+    .save-btn {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    
+    .save-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+    }
+    
+    .cancel-btn {
+      background: #f0f0f0;
+      color: #333;
+    }
+    
+    .cancel-btn:hover {
+      background: #e0e0e0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📸 Redimensionner Images</h1>
+    <p class="subtitle">Sélectionnez vos fichiers pour commencer</p>
+    
+    <div class="upload-section">
+      <div style="display: flex; gap: 12px; width: 100%; margin-bottom: 20px;">
+        <button id="fileSelectBtn" style="flex: 1; padding: 14px 20px; background: #3b82f6; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 15px; transition: all 0.2s ease; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);">📸 Fichiers</button>
+        <button id="folderSelectBtn" style="flex: 1; padding: 14px 20px; background: #6366f1; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 15px; transition: all 0.2s ease; box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2);">📁 Dossier</button>
+      </div>
+      <input type="file" id="fileInput" multiple accept="image/*" style="display: none;">
+      <input type="file" id="folderInput" webkitdirectory multiple style="display: none;">
+    </div>
+    
+    <div class="main-content" id="mainContent">
+      <div class="layout">
+        <div class="preview-section">
+          <div>
+            <div class="preview-title">Toutes les images (cliquez pour éditer) :</div>
+            <div style="font-size: 12px; color: #6b7280; margin-bottom: 8px;">💡 Ctrl+clic pour sélectionner plusieurs</div>
+          </div>
+          <div id="previewGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); grid-auto-rows: max-content; gap: 12px; width: 100%; padding: 12px;"></div>
+        </div>
+        
+        <div class="settings-section">
+          <div class="settings-title">⚙️ Paramètres</div>
+          
+          <div>
+            <div class="settings-title" style="margin-bottom: 8px;">Présets :</div>
+            <div class="preset-buttons">
+              <button class="preset-btn active" data-preset="1920x1080">
+                📺 Horizontal<div class="preset-dimensions">1920×1080</div>
+              </button>
+              <button class="preset-btn" data-preset="1080x1920">
+                📱 Vertical<div class="preset-dimensions">1080×1920</div>
+              </button>
+              <button class="preset-btn" data-preset="blur" style="grid-column: 1 / -1;">
+                ✨ Flou complet<div class="preset-dimensions">Image entière + fond flou</div>
+              </button>
+              <button class="preset-btn" data-preset="une" style="grid-column: 1 / -1;">
+                📰 Une de presse<div class="preset-dimensions">750×992</div>
+              </button>
+            </div>
+          </div>
+          
+          <div>
+            <label style="font-size: 13px; font-weight: 500; color: #333; display: block; margin-bottom: 8px;">Format :</label>
+            <select id="formatSelect" class="format-select">
+              <option value="jpeg">JPEG - Haute qualité</option>
+              <option value="png">PNG - Sans perte</option>
+              <option value="jpg">JPG - Compression</option>
+            </select>
+          </div>
+          
+          <div class="file-list">
+            <div class="file-count">
+              <span id="fileCount">0</span> image(s)
+            </div>
+            <div class="files" id="filesList"></div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="buttons">
+        <button id="resizeBtn">📥 Redimensionner</button>
+        <button id="clearBtn">Réinitialiser</button>
+      </div>
+      
+      <div id="progress">
+        <div class="progress-text">Traitement en cours...</div>
+        <div class="progress-bar-bg">
+          <div id="progressBar"></div>
+        </div>
+      </div>
+      
+      <div id="status"></div>
+      
+      <div class="info-box" style="display: none;">
+        💡 Cliquez sur l'aperçu pour ajuster le crop • Présets changent l'aperçu en direct
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal d'édition -->
+  <div id="cropModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title">Éditer l'image</h2>
+        <button class="close-btn" id="closeModal">&times;</button>
+      </div>
+      
+      <div style="display: grid; grid-template-columns: 1fr 150px; gap: 16px; margin-bottom: 16px; align-items: end;">
+        <div style="font-size: 12px; color: #666;">
+          Glissez pour repositionner • Zoom pour ajuster
+        </div>
+        <div class="crop-control">
+          <label>Zoom</label>
+          <input type="range" id="zoomSlider" min="0.5" max="3" step="0.1" value="1" style="width: 100%; margin: 0;">
+        </div>
+      </div>
+      
+      <div style="margin-bottom: 16px;">
+        <div style="font-size: 12px; font-weight: 600; color: #333; margin-bottom: 8px;">Réinitialiser :</div>
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
+          <button id="modalPresetHorizontal" style="padding: 8px 12px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500;">📺 H</button>
+          <button id="modalPresetVertical" style="padding: 8px 12px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500;">📱 V</button>
+          <button id="modalPresetBlur" style="padding: 8px 12px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500;">✨ Flou</button>
+          <button id="modalPresetUne" style="padding: 8px 12px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500;">📰 Une</button>
+        </div>
+      </div>
+      
+      <div id="modalPreview" style="width: 100%; background: #f0f0f0; border: 2px solid #ddd; border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center; cursor: grab; margin-bottom: 16px; padding: 20px;">
+        <canvas id="modalPreviewCanvas" style="max-width: 100%; max-height: 500px; display: block;"></canvas>
+      </div>
+      
+      <div class="modal-buttons">
+        <button class="cancel-btn" id="cancelBtn">Annuler</button>
+        <button class="save-btn" id="saveBtn">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Petit lien d'info discret en bas à gauche -->
+  <details style="position: fixed; bottom: 35px; left: 10px; font-size: 12px; color: #9ca3af; z-index: 100;">
+    <summary style="cursor: pointer; font-weight: 500; color: #6b7280;">💡 Comment ça marche ?</summary>
+    <div style="position: absolute; bottom: 30px; left: 0; background: white; border: 1px solid #e5e7eb; border-radius: 6px; padding: 14px; width: 310px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); font-size: 12px; color: #6b7280; line-height: 1.6; z-index: 101;">
+      <p style="margin-bottom: 8px;"><strong style="color: #374151;">🔒 100% hors ligne</strong><br>Le navigateur utilise la puissance de votre ordinateur pour redimensionner les images. Aucune donnée ne quitte votre appareil.</p>
+      
+      <p style="margin-bottom: 8px;"><strong style="color: #374151;">📥 Pourquoi télécharger ?</strong><br>Vous téléchargez les fichiers <strong>modifiés</strong> que votre navigateur a créés. C'est comme sauvegarder un document en local.</p>
+      
+      <p style="margin-bottom: 8px;"><strong style="color: #374151;">⚙️ Le processus</strong><br>1. Vous sélectionnez des images<br>2. Le navigateur les charge en mémoire<br>3. Le canvas 2D redimensionne et crop<br>4. Vous téléchargez le résultat</p>
+      
+      <p style="margin: 0;"><strong style="color: #374151;">🛡️ Zéro serveur</strong><br>Aucun serveur n'intervient. Fermez la page = tout effacé automatiquement.</p>
+    </div>
+  </details>
+
+  <script>
+    const fileInput = document.getElementById('fileInput');
+    const folderInput = document.getElementById('folderInput');
+    const mainContent = document.getElementById('mainContent');
+    const previewImg = document.getElementById('previewImg');
+    const filesList = document.getElementById('filesList');
+    const fileCount = document.getElementById('fileCount');
+    const resizeBtn = document.getElementById('resizeBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const formatSelect = document.getElementById('formatSelect');
+    const presetBtns = document.querySelectorAll('.preset-btn');
+    const progress = document.getElementById('progress');
+    const progressBar = document.getElementById('progressBar');
+    const status = document.getElementById('status');
+    const fileSelectBtn = document.getElementById('fileSelectBtn');
+    const folderSelectBtn = document.getElementById('folderSelectBtn');
+    
+    const cropModal = document.getElementById('cropModal');
+    const closeModal = document.getElementById('closeModal');
+    const cancelBtn = document.getElementById('cancelBtn');
+    const saveBtn = document.getElementById('saveBtn');
+    const zoomSlider = document.getElementById('zoomSlider');
+    const modalPreviewCanvas = document.getElementById('modalPreviewCanvas');
+    const modalPreviewCtx = modalPreviewCanvas.getContext('2d');
+
+    let selectedFiles = [];
+    let currentPreset = '1920x1080';
+    let editingIndex = -1;
+    let cropData = {};
+    let imagePresets = {}; // Preset de chaque image individuellement
+    let selectedIndices = new Set(); // Images sélectionnées pour appliquer le preset
+    let currentImage = null;
+    let originalImageSrc = null; // Image originale non modifiée
+    let presetDimensions = { '1920x1080': { w: 1920, h: 1080 }, '1080x1920': { w: 1080, h: 1920 }, 'blur': { w: 1920, h: 1080 }, 'une': { w: 750, h: 992 } };
+
+    // Boutons de sélection
+    fileSelectBtn.addEventListener('click', () => {
+      fileInput.click();
+    });
+
+    folderSelectBtn.addEventListener('click', () => {
+      folderInput.click();
+    });
+
+    fileInput.addEventListener('change', (e) => handleFiles(Array.from(e.target.files)));
+    folderInput.addEventListener('change', (e) => handleFiles(Array.from(e.target.files)));
+
+    function handleFiles(files) {
+      // Nettoyer les anciennes données en mémoire
+      if (window.galleryImages) {
+        Object.values(window.galleryImages).forEach(item => {
+          if (item.img && item.img.src) {
+            item.img.src = '';
+          }
+        });
+        window.galleryImages = {};
+      }
+      
+      selectedFiles = files.filter(f => f.type.startsWith('image/'));
+      cropData = {};
+      imagePresets = {};
+      selectedIndices.clear();
+      updateUI();
+    }
+
+    function updateUI() {
+      if (selectedFiles.length === 0) {
+        mainContent.classList.remove('show');
+        return;
+      }
+      
+      mainContent.classList.add('show');
+      fileCount.textContent = selectedFiles.length;
+      filesList.innerHTML = selectedFiles.map((f, i) => `
+        <div class="file-item">
+          <span class="file-name">${f.name}</span>
+          <span class="file-size">${(f.size / 1024 / 1024).toFixed(1)}MB</span>
+        </div>
+      `).join('');
+      resizeBtn.style.display = 'block';
+      clearBtn.style.display = 'block';
+      
+      createGallery();
+    }
+
+    function createGallery() {
+      const previewGrid = document.getElementById('previewGrid');
+      previewGrid.innerHTML = '';
+      
+      selectedFiles.forEach((file, index) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          // Déterminer le ratio basé sur le preset
+          const presetKey = getImagePreset(index);
+          let ratio = '16/9'; // par défaut
+          if (presetKey === '1080x1920') ratio = '9/16';
+          else if (presetKey === 'une') ratio = '750/992';
+          
+          const previewBox = document.createElement('div');
+          previewBox.style.cssText = `aspect-ratio: ${ratio}; background: #f0f0f0; border-radius: 8px; overflow: hidden; border: 2px solid #ddd; cursor: pointer; transition: all 0.3s ease; max-height: 200px; position: relative;`;
+          
+          const img = document.createElement('img');
+          img.style.cssText = 'width: 100%; height: 100%; object-fit: cover;';
+          
+          const checkbox = document.createElement('div');
+          checkbox.style.cssText = 'position: absolute; top: 8px; right: 8px; width: 20px; height: 20px; background: rgba(59, 130, 246, 0.9); border: 2px solid white; border-radius: 4px; display: none; z-index: 10; align-items: center; justify-content: center; font-size: 12px; color: white; font-weight: bold;';
+          checkbox.textContent = '✓';
+          
+          previewBox.appendChild(img);
+          previewBox.appendChild(checkbox);
+          
+          previewBox.addEventListener('click', (e) => {
+            if (e.ctrlKey || e.metaKey) {
+              // Sélection multiple avec Ctrl/Cmd
+              e.stopPropagation();
+              if (selectedIndices.has(index)) {
+                selectedIndices.delete(index);
+                checkbox.style.display = 'none';
+                previewBox.style.boxShadow = 'none';
+              } else {
+                selectedIndices.add(index);
+                checkbox.style.display = 'flex';
+                previewBox.style.boxShadow = '0 0 12px rgba(59, 130, 246, 0.6)';
+              }
+            } else {
+              // Click normal - éditer l'image
+              editingIndex = index;
+              originalImageSrc = e.target.result || img.src;
+              updatePreviewForIndex(index);
+              openCropEditor();
+            }
+          });
+          
+          previewBox.addEventListener('mouseenter', () => {
+            previewBox.style.borderColor = '#667eea';
+            previewBox.style.boxShadow = '0 0 12px rgba(102, 126, 234, 0.4)';
+          });
+          
+          previewBox.addEventListener('mouseleave', () => {
+            previewBox.style.borderColor = '#ddd';
+            previewBox.style.boxShadow = 'none';
+          });
+          
+          previewGrid.appendChild(previewBox);
+          
+          // Stocker la référence à la vignette pour les mises à jour
+          if (!window.galleryImages) window.galleryImages = {};
+          window.galleryImages[index] = { box: previewBox, img: img };
+          
+          // Générer le rendu du preset
+          const imgObject = new Image();
+          imgObject.onload = () => {
+            const presetKey = getImagePreset(index);
+            const dims = presetDimensions[presetKey];
+            const width = dims.w;
+            const height = dims.h;
+            const useBlur = presetKey === 'blur';
+            const cropSettings = cropData[index] || {};
+            
+            img.src = renderImage(imgObject, width, height, useBlur, cropSettings);
+          };
+          imgObject.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function updatePreviewForIndex(index) {
+      // Cette fonction n'est plus nécessaire - sauvegarder juste originalImageSrc pour l'éditeur
+      if (index < 0 || index >= selectedFiles.length) return;
+      
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        originalImageSrc = e.target.result;
+      };
+      reader.readAsDataURL(selectedFiles[index]);
+    }
+
+    function getImagePreset(index) {
+      // Retourner le preset spécifique de l'image, ou le preset global par défaut
+      return imagePresets[index] !== undefined ? imagePresets[index] : currentPreset;
+    }
+
+    function renderImage(img, width, height, useBlur, cropSettings) {
+      const canvas = document.createElement('canvas');
+      const c = canvas.getContext('2d');
+      canvas.width = width;
+      canvas.height = height;
+      
+      const { zoom = 1, offsetX = 0, offsetY = 0 } = cropSettings || {};
+      
+      if (useBlur) {
+        // Mode flou
+        c.filter = 'blur(30px)';
+        c.drawImage(img, 0, 0, width, height);
+        c.filter = 'none';
+        
+        const sourceRatio = img.width / img.height;
+        const baseHeight = height;
+        const baseWidth = baseHeight * sourceRatio;
+        
+        const displayWidth = baseWidth * zoom;
+        const displayHeight = baseHeight * zoom;
+        
+        const x = (width - displayWidth) / 2 + offsetX;
+        const y = (height - displayHeight) / 2 + offsetY;
+        
+        c.drawImage(img, x, y, displayWidth, displayHeight);
+      } else {
+        // Mode normal - crop intelligent
+        const targetRatio = width / height;
+        const sourceRatio = img.width / img.height;
+        
+        let sourceX = 0;
+        let sourceY = 0;
+        let sourceW = img.width;
+        let sourceH = img.height;
+        
+        if (sourceRatio > targetRatio) {
+          sourceW = img.height * targetRatio;
+          sourceX = (img.width - sourceW) / 2;
+        } else {
+          sourceH = img.width / targetRatio;
+          sourceY = (img.height - sourceH) / 2;
+        }
+        
+        const displaySourceW = sourceW / zoom;
+        const displaySourceH = sourceH / zoom;
+        
+        sourceX += (sourceW - displaySourceW) / 2 - (offsetX / zoom);
+        sourceY += (sourceH - displaySourceH) / 2 - (offsetY / zoom);
+        
+        sourceX = Math.max(0, Math.min(img.width - displaySourceW, sourceX));
+        sourceY = Math.max(0, Math.min(img.height - displaySourceH, sourceY));
+        
+        c.drawImage(img, sourceX, sourceY, displaySourceW, displaySourceH, 0, 0, width, height);
+      }
+      
+      return canvas.toDataURL();
+    }
+
+    function updatePreview() {
+      // updatePreview n'est plus nécessaire - la galerie se met à jour directement
+      // Cette fonction est conservée pour compatibilité si elle est appelée
+    }
+
+    presetBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        presetBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentPreset = btn.dataset.preset;
+        
+        // Déterminer quelles images mettre à jour
+        const indicesToUpdate = selectedIndices.size > 0 ? Array.from(selectedIndices) : [...Array(selectedFiles.length).keys()];
+        
+        // Mettre à jour les images sélectionnées
+        indicesToUpdate.forEach(index => {
+          // Si aucune sélection, le preset global s'applique à toutes
+          // Si sélections, le preset s'applique juste à celles-ci
+          if (selectedIndices.size > 0) {
+            imagePresets[index] = currentPreset;
+          }
+          updateGalleryBoxRatio(index);
+          updateGalleryPreview(index);
+        });
+      });
+    });
+
+    function openCropEditor() {
+      currentImage = originalImageSrc; // Utiliser l'image originale
+      const img = new Image();
+      img.onload = () => {
+        const data = cropData[editingIndex] || { zoom: 1, offsetX: 0, offsetY: 0 };
+        zoomSlider.value = data.zoom;
+        drawModalPreview(); // Afficher la preview finale
+        cropModal.classList.add('show');
+      };
+      img.src = currentImage;
+    }
+
+    function drawModalPreview() {
+      if (!currentImage) return;
+      
+      const img = new Image();
+      img.onload = () => {
+        const presetKey = getImagePreset(editingIndex);
+        const dims = presetDimensions[presetKey];
+        const width = dims.w;
+        const height = dims.h;
+        
+        // Dimensionner le canvas pour garder le ratio exact sans étirement
+        const maxHeight = 500; // Hauteur max
+        const ratio = width / height;
+        modalPreviewCanvas.height = maxHeight;
+        modalPreviewCanvas.width = maxHeight * ratio;
+        
+        // Vider le canvas
+        modalPreviewCtx.clearRect(0, 0, modalPreviewCanvas.width, modalPreviewCanvas.height);
+        
+        const useBlur = presetKey === 'blur';
+        const { zoom = 1, offsetX = 0, offsetY = 0 } = cropData[editingIndex] || {};
+        
+        if (useBlur) {
+          // Mode flou
+          modalPreviewCtx.filter = 'blur(30px)';
+          modalPreviewCtx.drawImage(img, 0, 0, modalPreviewCanvas.width, modalPreviewCanvas.height);
+          modalPreviewCtx.filter = 'none';
+          
+          const sourceRatio = img.width / img.height;
+          const baseHeight = height;
+          const baseWidth = baseHeight * sourceRatio;
+          
+          const displayWidth = baseWidth * zoom;
+          const displayHeight = baseHeight * zoom;
+          
+          const scale = modalPreviewCanvas.width / width;
+          const x = (modalPreviewCanvas.width - displayWidth * scale) / 2 + offsetX * scale;
+          const y = (modalPreviewCanvas.height - displayHeight * scale) / 2 + offsetY * scale;
+          
+          modalPreviewCtx.drawImage(img, x, y, displayWidth * scale, displayHeight * scale);
+        } else {
+          // Mode normal
+          const targetRatio = width / height;
+          const sourceRatio = img.width / img.height;
+          
+          let sourceX = 0;
+          let sourceY = 0;
+          let sourceW = img.width;
+          let sourceH = img.height;
+          
+          if (sourceRatio > targetRatio) {
+            sourceW = img.height * targetRatio;
+            sourceX = (img.width - sourceW) / 2;
+          } else {
+            sourceH = img.width / targetRatio;
+            sourceY = (img.height - sourceH) / 2;
+          }
+          
+          const displaySourceW = sourceW / zoom;
+          const displaySourceH = sourceH / zoom;
+          
+          sourceX += (sourceW - displaySourceW) / 2 - (offsetX / zoom);
+          sourceY += (sourceH - displaySourceH) / 2 - (offsetY / zoom);
+          
+          sourceX = Math.max(0, Math.min(img.width - displaySourceW, sourceX));
+          sourceY = Math.max(0, Math.min(img.height - displaySourceH, sourceY));
+          
+          modalPreviewCtx.drawImage(img, sourceX, sourceY, displaySourceW, displaySourceH, 0, 0, modalPreviewCanvas.width, modalPreviewCanvas.height);
+        }
+      };
+      img.src = currentImage;
+    }
+
+    let isDragging = false;
+    let dragStart = { x: 0, y: 0 };
+
+    modalPreviewCanvas.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      dragStart = { x: e.clientX, y: e.clientY };
+      modalPreviewCanvas.parentElement.style.cursor = 'grabbing';
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!isDragging || editingIndex === -1) return;
+      const deltaX = (e.clientX - dragStart.x) * 2;
+      const deltaY = (e.clientY - dragStart.y) * 2;
+      const data = cropData[editingIndex] || { zoom: 1, offsetX: 0, offsetY: 0 };
+      data.offsetX += deltaX;
+      data.offsetY += deltaY;
+      cropData[editingIndex] = data;
+      
+      drawModalPreview();
+      updateGalleryPreview(editingIndex);
+      
+      dragStart = { x: e.clientX, y: e.clientY };
+    });
+
+    document.addEventListener('mouseup', () => {
+      isDragging = false;
+      if (modalPreviewCanvas.parentElement) {
+        modalPreviewCanvas.parentElement.style.cursor = 'grab';
+      }
+    });
+
+    zoomSlider.addEventListener('input', () => {
+      const data = cropData[editingIndex] || { zoom: 1, offsetX: 0, offsetY: 0 };
+      data.zoom = parseFloat(zoomSlider.value);
+      cropData[editingIndex] = data;
+      
+      drawModalPreview();
+      updateGalleryPreview(editingIndex);
+    });
+
+    function updateGalleryPreview(index) {
+      if (index < 0 || index >= selectedFiles.length) return;
+      if (!window.galleryImages || !window.galleryImages[index]) return;
+      
+      const { img: imgElement } = window.galleryImages[index];
+      
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const presetKey = getImagePreset(index);
+          const dims = presetDimensions[presetKey];
+          const width = dims.w;
+          const height = dims.h;
+          const useBlur = presetKey === 'blur';
+          const cropSettings = cropData[index] || {};
+          
+          imgElement.src = renderImage(img, width, height, useBlur, cropSettings);
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(selectedFiles[index]);
+    }
+
+    function updateGalleryBoxRatio(index) {
+      if (index < 0 || index >= selectedFiles.length) return;
+      if (!window.galleryImages || !window.galleryImages[index]) return;
+      
+      const { box } = window.galleryImages[index];
+      const presetKey = getImagePreset(index);
+      let ratio = '16/9'; // par défaut
+      
+      if (presetKey === '1080x1920') ratio = '9/16';
+      else if (presetKey === 'une') ratio = '750/992'; // 3:4 approximativement
+      
+      box.style.aspectRatio = ratio;
+    }
+
+    closeModal.addEventListener('click', () => {
+      cropModal.classList.remove('show');
+      editingIndex = -1;
+    });
+
+    cancelBtn.addEventListener('click', () => {
+      cropModal.classList.remove('show');
+      editingIndex = -1;
+    });
+
+    // Boutons de présets dans la modal d'édition
+    document.getElementById('modalPresetHorizontal').addEventListener('click', () => {
+      if (editingIndex < 0 || !currentImage) return;
+      imagePresets[editingIndex] = '1920x1080';
+      cropData[editingIndex] = { zoom: 1, offsetX: 0, offsetY: 0 };
+      zoomSlider.value = 1;
+      dragStart = { x: 0, y: 0 };
+      isDragging = false;
+      updateGalleryBoxRatio(editingIndex);
+      drawModalPreview();
+      updateGalleryPreview(editingIndex);
+    });
+
+    document.getElementById('modalPresetVertical').addEventListener('click', () => {
+      if (editingIndex < 0 || !currentImage) return;
+      imagePresets[editingIndex] = '1080x1920';
+      cropData[editingIndex] = { zoom: 1, offsetX: 0, offsetY: 0 };
+      zoomSlider.value = 1;
+      dragStart = { x: 0, y: 0 };
+      isDragging = false;
+      updateGalleryBoxRatio(editingIndex);
+      drawModalPreview();
+      updateGalleryPreview(editingIndex);
+    });
+
+    document.getElementById('modalPresetBlur').addEventListener('click', () => {
+      if (editingIndex < 0 || !currentImage) return;
+      imagePresets[editingIndex] = 'blur';
+      cropData[editingIndex] = { zoom: 1, offsetX: 0, offsetY: 0 };
+      zoomSlider.value = 1;
+      dragStart = { x: 0, y: 0 };
+      isDragging = false;
+      updateGalleryBoxRatio(editingIndex);
+      drawModalPreview();
+      updateGalleryPreview(editingIndex);
+    });
+
+    document.getElementById('modalPresetUne').addEventListener('click', () => {
+      if (editingIndex < 0 || !currentImage) return;
+      imagePresets[editingIndex] = 'une';
+      cropData[editingIndex] = { zoom: 1, offsetX: 0, offsetY: 0 };
+      zoomSlider.value = 1;
+      dragStart = { x: 0, y: 0 };
+      isDragging = false;
+      updateGalleryBoxRatio(editingIndex);
+      drawModalPreview();
+      updateGalleryPreview(editingIndex);
+    });
+
+    saveBtn.addEventListener('click', () => {
+      cropModal.classList.remove('show');
+      editingIndex = -1;
+    });
+
+    clearBtn.addEventListener('click', () => {
+      // Nettoyer la mémoire des images
+      if (window.galleryImages) {
+        Object.values(window.galleryImages).forEach(item => {
+          if (item.img && item.img.src) {
+            item.img.src = '';
+          }
+        });
+        window.galleryImages = {};
+      }
+      
+      selectedFiles = [];
+      fileInput.value = '';
+      folderInput.value = '';
+      cropData = {};
+      imagePresets = {};
+      selectedIndices.clear();
+      updateUI();
+      
+      // Forcer le garbage collection si disponible
+      if (window.gc) window.gc();
+    });
+
+    resizeBtn.addEventListener('click', async () => {
+      resizeBtn.disabled = true;
+      progress.style.display = 'block';
+      status.style.display = 'none';
+      
+      console.log('Preset actif:', currentPreset);
+      
+      const dims = presetDimensions[currentPreset];
+      if (!dims) {
+        showStatus('❌ Preset invalide', 'error');
+        resizeBtn.disabled = false;
+        return;
+      }
+      
+      const format = formatSelect.value;
+      const zip = new JSZip();
+      
+      for (let i = 0; i < selectedFiles.length; i++) {
+        try {
+          // Utiliser le preset de chaque image individuellement
+          const presetKey = getImagePreset(i);
+          const dims = presetDimensions[presetKey];
+          const width = dims.w;
+          const height = dims.h;
+          const useBlur = presetKey === 'blur';
+          
+          // Utiliser les données de crop de chaque image individuellement
+          const cropSettings = cropData[i] || { zoom: 1, offsetX: 0, offsetY: 0 };
+          const resized = await resizeImage(selectedFiles[i], width, height, format, useBlur, cropSettings);
+          const filename = selectedFiles[i].name.split('.').slice(0, -1).join('.') + '.' + format;
+          zip.file(filename, resized, { binary: true });
+          
+          progressBar.style.width = ((i + 1) / selectedFiles.length * 100) + '%';
+        } catch (err) {
+          console.error('Erreur:', err);
+          showStatus('❌ Erreur traitement', 'error');
+          resizeBtn.disabled = false;
+          return;
+        }
+      }
+      
+      try {
+        const blob = await zip.generateAsync({ type: 'blob' });
+        const objectUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = objectUrl;
+        a.download = 'images_redimensionnees.zip';
+        a.click();
+        
+        // Libérer la mémoire après un court délai pour que le téléchargement se termine
+        setTimeout(() => {
+          URL.revokeObjectURL(objectUrl);
+        }, 100);
+        
+        progress.style.display = 'none';
+        showStatus('✅ ' + selectedFiles.length + ' image(s) redimensionnée(s) !', 'success');
+      } catch (err) {
+        console.error('Erreur ZIP:', err);
+        showStatus('❌ Erreur création ZIP', 'error');
+      }
+      
+      resizeBtn.disabled = false;
+    });
+
+    function resizeImage(file, width, height, format, useBlur, cropSettings) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            const dataUrl = renderImage(img, width, height, useBlur, cropSettings);
+            
+            // Convertir le data URL en blob
+            fetch(dataUrl)
+              .then(res => res.blob())
+              .then(blob => resolve(blob))
+              .catch(reject);
+          };
+          img.src = e.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function showStatus(message, type) {
+      status.textContent = message;
+      status.className = type;
+      status.style.display = 'block';
+    }
+  </script>
+</body>
+</html>
