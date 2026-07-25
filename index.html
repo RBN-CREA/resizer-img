@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -1311,7 +1310,7 @@
 
     <main class="card">
       
-      <!-- ================= ONGLET IMAGES (Original) ================= -->
+      <!-- ================= ONGLET IMAGES ================= -->
       <div class="app-view active" id="imageView">
         <section class="upload-view" id="uploadView">
           <div class="dropzone" id="dropZone">
@@ -1649,7 +1648,7 @@
     <button id="ctxGroupBtn">📁 Grouper la sélection...</button>
   </div>
 
-  <!-- Modal Éditeur Images (IDENTIQUE SOURCE 2) -->
+  <!-- Modal Éditeur Images -->
   <div class="modal-overlay" id="editorModal">
     <div class="modal">
       <div class="modal-header">
@@ -1772,6 +1771,13 @@
                   <span class="slider-value" id="blurIntensityValue">10px</span>
                 </div>
                 <input type="range" id="blurIntensitySlider" min="0" max="50" step="1" value="10">
+              </div>
+              <div class="slider-row">
+                <div class="slider-header">
+                  <span>Zoom du fond</span>
+                  <span class="slider-value" id="blurBgZoomValue">130%</span>
+                </div>
+                <input type="range" id="blurBgZoomSlider" min="1" max="3" step="0.05" value="1.3">
               </div>
             </div>
           </div>
@@ -2076,7 +2082,7 @@
                   rawBlackSegments.push({ start: startBlack, end: t });
               }
               if (avgLum > 248) {
-                  anomalies.push({ type: 'white', start: t, end: t, tcIn: formatTimecode(t), tcOut: formatTimecode(t) });
+                  anomalies.push({ type: 'white', start: t, end: t, tcIn: formatTimecode(t), tcOut: formatTimecode(t), keep: false });
               }
             }
             
@@ -2094,7 +2100,8 @@
           let paddedBlackSegments = rawBlackSegments.map(seg => ({
              start: Math.max(0, seg.start - timeMargin),
              end: Math.min(duration, seg.end + timeMargin),
-             type: 'black'
+             type: 'black',
+             keep: false
           }));
 
           let blackSegments = [];
@@ -2131,6 +2138,7 @@
             customH: 1080,
             shadow: { enabled: false, opacity: 0.3, direction: 180, distance: 4 },
             blur: { enabled: false, intensity: 20 },
+            isMuted: false, // Variable Mute
             anomalies,
             blackSegments,
             status: anomalies.length > 0 ? 'error' : 'ok'
@@ -2149,17 +2157,40 @@
       analyzedVideos.forEach((vid, index) => {
         const item = document.createElement('div');
         item.className = `video-item ${vid.status === 'ok' ? 'status-ok' : 'status-error'} ${index === activeVideoIndex ? 'active' : ''}`;
-        
+
+        // Icônes SVG pour le son
+        const soundIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>`;
+        const muteIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="1" x2="1" y2="23"></line><path d="M15.54 8.46a5 5 0 0 1 5.58-1.18"></path><path d="M19.07 4.93a10 10 0 0 1 2.27 11.45"></path></svg>`;
+
         item.innerHTML = `
           <div class="video-item-header">
             <div style="display:flex; align-items:center; gap:8px;">
                <input type="checkbox" class="video-export-cb" data-index="${index}" checked onclick="event.stopPropagation()">
                <span class="video-item-name" title="${vid.file.name}">${vid.file.name}</span>
             </div>
-            <span class="video-item-badge">${vid.status === 'ok' ? 'OK' : vid.anomalies.length + ' défaut(s)'}</span>
+
+            <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px;">
+                <span class="video-item-badge">${vid.status === 'ok' ? 'OK' : vid.anomalies.length + ' défaut(s)'}</span>
+                <button class="mute-toggle-btn" title="${vid.isMuted ? 'Activer le son' : 'Couper le son'}" style="background:transparent; border:none; cursor:pointer; color: ${vid.isMuted ? 'var(--error)' : 'var(--text-muted)'}; display:flex; align-items:center; padding:2px; margin-right:4px;">
+                    ${vid.isMuted ? muteIcon : soundIcon}
+                </button>
+            </div>
           </div>
           <span style="font-size: 0.6875rem; color: var(--text-dim); margin-left:24px;">${Math.round(vid.duration)}s</span>
         `;
+
+        // Gestion du clic pour Mute/Unmute avec répercussion sur le lecteur
+        const muteBtn = item.querySelector('.mute-toggle-btn');
+        muteBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); // Évite de sélectionner la vidéo en arrière-plan
+            analyzedVideos[index].isMuted = !analyzedVideos[index].isMuted;
+            // Met à jour le lecteur principal si c'est la vidéo active
+            if (index === activeVideoIndex) {
+                mainPlayer.muted = analyzedVideos[index].isMuted;
+            }
+            updateVideoListUI(); // Met à jour l'icône instantanément
+        });
+
         item.addEventListener('click', () => selectVideo(index));
         container.appendChild(item);
       });
@@ -2456,6 +2487,7 @@
       document.querySelectorAll('.video-item').forEach((el, idx) => el.classList.toggle('active', idx === index));
 
       mainPlayer.src = vid.url;
+      mainPlayer.muted = vid.isMuted; // Sync du son
       document.getElementById('videoPresetSelect').value = vid.preset || '1920x1080';
       document.getElementById('videoCustomDimsUI').style.display = vid.preset === 'custom' ? 'flex' : 'none';
       
@@ -2508,22 +2540,49 @@
       if (vid.anomalies.length === 0) {
         tcContainer.innerHTML = `<div style="font-size: 0.8125rem; color: var(--success); text-align: center; padding: 12px;">✓ Aucun écran noir ou blanc détecté. La vidéo est prête pour le broadcast.</div>`;
       } else {
-        vid.anomalies.forEach(anom => {
+        vid.anomalies.forEach((anom, anomIndex) => {
           const chip = document.createElement('div');
           chip.className = 'timecode-chip';
           const badgeColor = anom.type === 'black' ? 'var(--accent)' : 'var(--text-dim)';
-          const actionText = anom.type === 'black' ? '(Sera coupé au montage)' : '(À vérifier)';
+          
+          chip.style.borderLeftColor = anom.keep ? 'var(--success)' : 'var(--error)';
+          chip.style.transition = 'border-color 0.2s, background 0.2s';
+          const initialLabel = anom.keep ? 'Conserver' : 'Supprimer';
+          
           chip.innerHTML = `
-            <div style="display:flex; flex-direction:column; gap:4px;">
-              <span>⚠️ Segment <strong style="color:${badgeColor}">${anom.type === 'black' ? 'Noir' : 'Blanc'}</strong> ${actionText}</span>
+            <div style="display:flex; flex-direction:column; gap:4px; width: 100%;">
+              <div style="display:flex; justify-content: space-between; align-items: center;">
+                <span>⚠️ Segment <strong style="color:${badgeColor}">${anom.type === 'black' ? 'Noir' : 'Blanc'}</strong></span>
+                <div style="display:flex; align-items:center; gap:8px;" onclick="event.stopPropagation()">
+                  <span style="font-size:11px; color:var(--text-muted); cursor:pointer;" class="keep-label">${initialLabel}</span>
+                  <div class="toggle keep-segment-toggle ${anom.keep ? 'on' : ''}" style="transform: scale(0.8); transform-origin: right center;"></div>
+                </div>
+              </div>
               <div style="font-family:monospace; font-size:11px;">IN: ${anom.tcIn} ➔ OUT: ${anom.tcOut}</div>
             </div>
           `;
-          chip.addEventListener('click', () => {
+
+          const keepToggle = chip.querySelector('.keep-segment-toggle');
+          const keepLabel = chip.querySelector('.keep-label');
+          
+          const toggleKeepState = (e) => {
+              e.stopPropagation();
+              anom.keep = !anom.keep;
+              keepToggle.classList.toggle('on', anom.keep);
+              keepLabel.textContent = anom.keep ? 'Conserver' : 'Supprimer';
+              chip.style.borderLeftColor = anom.keep ? 'var(--success)' : 'var(--error)';
+          };
+
+          keepToggle.addEventListener('click', toggleKeepState);
+          keepLabel.addEventListener('click', toggleKeepState);
+
+          chip.addEventListener('click', (e) => {
+            if (e.target.closest('.keep-segment-toggle') || e.target.closest('.keep-label')) return;
             mainPlayer.currentTime = anom.start;
             mainPlayer.play();
             playIcon.innerHTML = '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
           });
+          
           tcContainer.appendChild(chip);
         });
       }
@@ -2543,6 +2602,23 @@
 
     async function exportSingleVideo(vidData, isFastExport, onProgressCallback) {
         return new Promise(async (resolve) => {
+            // --- 1. DÉTECTION ET EXTRACTION DU SON ---
+            let audioBuffer = null;
+            // Ne tente d'extraire le son QUE si la vidéo n'a pas été "mutée" manuellement
+            if (!vidData.isMuted) {
+                try {
+                    const arrayBuffer = await vidData.file.arrayBuffer();
+                    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    // Décode l'audio du fichier original
+                    audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+                } catch (e) {
+                    console.warn("Aucun son détecté ou format non supporté", e);
+                }
+            }
+            // Le flag final "hasAudio" prend maintenant en compte le choix de l'utilisateur
+            const hasAudio = !vidData.isMuted && audioBuffer && audioBuffer.numberOfChannels > 0;
+
+            // Préparation du lecteur Vidéo
             const videoElem = document.createElement('video');
             videoElem.src = vidData.url;
             videoElem.muted = true;
@@ -2562,12 +2638,25 @@
             canvas.width = targetW; canvas.height = targetH;
             const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
-            let muxer = new Mp4Muxer.Muxer({
+            // --- 2. CONFIGURATION DU MUXER (Avec piste audio) ---
+            let muxerConfig = {
                 target: new Mp4Muxer.ArrayBufferTarget(),
                 video: { codec: 'avc', width: targetW, height: targetH },
                 fastStart: 'in-memory'
-            });
+            };
 
+            // On déclare la piste audio au muxer si la vidéo a du son
+            if (hasAudio) {
+                muxerConfig.audio = {
+                    codec: 'aac',
+                    sampleRate: audioBuffer.sampleRate,
+                    numberOfChannels: audioBuffer.numberOfChannels
+                };
+            }
+
+            let muxer = new Mp4Muxer.Muxer(muxerConfig);
+
+            // --- 3. CONFIGURATION DES ENCODEURS (Vidéo + Audio) ---
             let videoEncoder = new VideoEncoder({
                 output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
                 error: e => console.error(e)
@@ -2579,6 +2668,20 @@
                 hardwareAcceleration: 'prefer-hardware'
             });
 
+            let audioEncoder = null;
+            if (hasAudio) {
+                audioEncoder = new AudioEncoder({
+                    output: (chunk, meta) => muxer.addAudioChunk(chunk, meta),
+                    error: e => console.error("Erreur AudioEncoder:", e)
+                });
+                audioEncoder.configure({
+                    codec: 'mp4a.40.2', // Format AAC-LC standard
+                    sampleRate: audioBuffer.sampleRate,
+                    numberOfChannels: audioBuffer.numberOfChannels,
+                    bitrate: 128_000 // Qualité Broadcast basique (128 kbps)
+                });
+            }
+
             const totalFrames = Math.round(vidData.duration * fps);
             let exportFrameCounter = 0;
 
@@ -2587,9 +2690,10 @@
 
                 let inBlackSegment = false;
                 if (vidData.blackSegments && vidData.blackSegments.length > 0) {
-                    inBlackSegment = vidData.blackSegments.some(seg => currentTime >= seg.start && currentTime <= seg.end);
+                    inBlackSegment = vidData.blackSegments.some(seg => !seg.keep && currentTime >= seg.start && currentTime <= seg.end);
                 }
 
+                // Si on est en export rapide (coupe auto) et qu'on détecte un segment noir, on saute la frame (le son sera sauté aussi !)
                 if (isFastExport && inBlackSegment) {
                     if (f % 5 === 0 && onProgressCallback) onProgressCallback(f);
                     continue;
@@ -2608,25 +2712,65 @@
                         pixelCount++;
                     }
                     if (totalLum / pixelCount < 6) {
-                        if (f % 5 === 0 && onProgressCallback) onProgressCallback(f);
-                        continue; 
+                        let isKept = vidData.blackSegments && vidData.blackSegments.some(seg => seg.keep && currentTime >= seg.start && currentTime <= seg.end);
+                        if (!isKept) {
+                            if (f % 5 === 0 && onProgressCallback) onProgressCallback(f);
+                            continue; 
+                        }
                     }
                 }
 
-                const bitmap = await createImageBitmap(canvas);
+                // Calcul du Timestamp commun à la vidéo ET à l'audio
                 const timestamp = (exportFrameCounter / fps) * 1_000_000;
                 const duration = (1 / fps) * 1_000_000;
+                
+                // Traitement et Encodage Vidéo
+                const bitmap = await createImageBitmap(canvas);
                 const frame = new VideoFrame(bitmap, { timestamp, duration });
                 
                 videoEncoder.encode(frame, { keyFrame: exportFrameCounter % fps === 0 });
                 frame.close();
                 bitmap.close();
 
+                // --- 4. EXTRACTION ET ENCODAGE DU CHUNK AUDIO SYNCHRONISÉ ---
+                if (hasAudio) {
+                    const startSample = Math.floor(currentTime * audioBuffer.sampleRate);
+                    const endSample = Math.floor((currentTime + 1/fps) * audioBuffer.sampleRate);
+                    const frameCount = endSample - startSample;
+
+                    if (frameCount > 0 && startSample < audioBuffer.length) {
+                        const validFrameCount = Math.min(frameCount, audioBuffer.length - startSample);
+                        // WebCodecs s'attend à recevoir des données planaires (f32-planar)
+                        const dataBuffer = new Float32Array(validFrameCount * audioBuffer.numberOfChannels);
+
+                        for (let c = 0; c < audioBuffer.numberOfChannels; c++) {
+                            const channelData = audioBuffer.getChannelData(c);
+                            dataBuffer.set(channelData.subarray(startSample, startSample + validFrameCount), c * validFrameCount);
+                        }
+
+                        const audioData = new AudioData({
+                            format: 'f32-planar',
+                            sampleRate: audioBuffer.sampleRate,
+                            numberOfFrames: validFrameCount,
+                            numberOfChannels: audioBuffer.numberOfChannels,
+                            timestamp: timestamp, // Crucial : Force la synchro audio sur la nouvelle timeline
+                            data: dataBuffer
+                        });
+
+                        audioEncoder.encode(audioData);
+                        audioData.close();
+                    }
+                }
+
                 exportFrameCounter++; 
                 if (f % 5 === 0 && onProgressCallback) onProgressCallback(f);
             }
 
+            // --- 5. CLÔTURE ET EXPORT ---
             await videoEncoder.flush();
+            if (hasAudio) {
+                await audioEncoder.flush();
+            }
             muxer.finalize();
 
             const blob = new Blob([muxer.target.buffer], { type: 'video/mp4' });
@@ -2764,6 +2908,7 @@
     
     let showBackgroundBlur = false;
     let backgroundBlurIntensity = 20;
+    let backgroundBlurZoom = 1.3; // NOUVEAU
     
     let showBgColor = false;
     let bgColorValue = '#ffffff';
@@ -3450,7 +3595,7 @@
           const preset = imagePresets[idx] || '1920x1080';
           const crop = cropData[idx] || { zoom: 1, offsetX: 0, offsetY: 0 };
           const shadow = imageShadowSettings[idx] || { opacity: 0.3, direction: 180, distance: 4, enabled: false };
-          const blur = imageBlurSettings[idx] || { enabled: false, intensity: 10 };
+          const blur = imageBlurSettings[idx] || { enabled: false, intensity: 10, bgZoom: 1.3 };
           const bgColor = imageBgColorSettings[idx] || { enabled: false, color: '#ffffff' };
           const isBlurPreset = (preset === 'blur');
 
@@ -3470,7 +3615,7 @@
                 const nextPreset = imagePresets[nextIdx] || '1920x1080';
                 const nextCrop = cropData[nextIdx] || { zoom: 1, offsetX: 0, offsetY: 0 };
                 const nextShadow = imageShadowSettings[nextIdx] || { opacity: 0.3, direction: 180, distance: 4, enabled: false };
-                const nextBlur = imageBlurSettings[nextIdx] || { enabled: false, intensity: 10 };
+                const nextBlur = imageBlurSettings[nextIdx] || { enabled: false, intensity: 10, bgZoom: 1.3 };
                 const nextBgColor = imageBgColorSettings[nextIdx] || { enabled: false, color: '#ffffff' };
                 const nextIsBlur = (nextPreset === 'blur');
 
@@ -3749,6 +3894,14 @@
       document.getElementById('blurIntensityValue').textContent = backgroundBlurIntensity + 'px';
       drawCanvasPreview();
     });
+    
+    // Événement pour le nouveau slider du zoom du fond flou
+    document.getElementById('blurBgZoomSlider').addEventListener('input', (e) => {
+      backgroundBlurZoom = parseFloat(e.target.value);
+      imageBlurSettings[editingIndex].bgZoom = backgroundBlurZoom;
+      document.getElementById('blurBgZoomValue').textContent = Math.round(backgroundBlurZoom * 100) + '%';
+      drawCanvasPreview();
+    });
 
     document.getElementById('bgColorToggle').addEventListener('click', () => {
       showBgColor = !showBgColor;
@@ -3814,7 +3967,7 @@
           imagePresets[idx] = presetToApply;
           cropData[idx].zoom = zoomLevel;
           imageShadowSettings[idx] = { enabled: showShadow, opacity: shadowOpacity, direction: shadowDirection, distance: shadowDistance };
-          imageBlurSettings[idx] = { enabled: showBackgroundBlur, intensity: backgroundBlurIntensity };
+          imageBlurSettings[idx] = { enabled: showBackgroundBlur, intensity: backgroundBlurIntensity, bgZoom: backgroundBlurZoom };
           imageBgColorSettings[idx] = { enabled: showBgColor, color: bgColorValue };
           imageCustomized[idx] = true;
 
@@ -3852,7 +4005,7 @@
         distance: shadowDistance, enabled: showShadow
       };
       imageBlurSettings[editingIndex] = {
-        enabled: showBackgroundBlur, intensity: backgroundBlurIntensity
+        enabled: showBackgroundBlur, intensity: backgroundBlurIntensity, bgZoom: backgroundBlurZoom
       };
       imageBgColorSettings[editingIndex] = {
         enabled: showBgColor, color: bgColorValue
@@ -3876,7 +4029,7 @@
         const isUne = (preset === 'une');
         
         cropData[idx] = { zoom: isBlurPreset ? 0.85 : 1, offsetX: 0, offsetY: 0, rawOffsetX: 0, rawOffsetY: 0, method: 'center' };
-        imageBlurSettings[idx] = isBlurPreset ? { enabled: true, intensity: 20 } : { enabled: false, intensity: 10 };
+        imageBlurSettings[idx] = isBlurPreset ? { enabled: true, intensity: 20, bgZoom: 1.3 } : { enabled: false, intensity: 10, bgZoom: 1.3 };
         imageBgColorSettings[idx] = { enabled: isUne, color: '#ffffff' };
         
         await applyAutoCrop(idx, selectedFiles[idx]);
@@ -3919,7 +4072,7 @@
         
         cropData[idx] = { zoom: isBlurPreset ? 0.85 : 1, offsetX: 0, offsetY: 0, rawOffsetX: 0, rawOffsetY: 0, method: 'center' };
         imageShadowSettings[idx] = { opacity: 0.3, direction: 180, distance: 4, enabled: false };
-        imageBlurSettings[idx] = isBlurPreset ? { enabled: true, intensity: 20 } : { enabled: false, intensity: 10 };
+        imageBlurSettings[idx] = isBlurPreset ? { enabled: true, intensity: 20, bgZoom: 1.3 } : { enabled: false, intensity: 10, bgZoom: 1.3 };
         imageBgColorSettings[idx] = { enabled: isUne, color: '#ffffff' };
         imageCustomized[idx] = false;
 
@@ -4046,7 +4199,7 @@
       img.onload = () => {
         const crop = cropData[index] || { zoom: 1, offsetX: 0, offsetY: 0 };
         const shadow = imageShadowSettings[index] || { opacity: 0.3, direction: 180, distance: 4, enabled: false };
-        const blur = imageBlurSettings[index] || { enabled: false, intensity: 10 };
+        const blur = imageBlurSettings[index] || { enabled: false, intensity: 10, bgZoom: 1.3 };
         const bgColor = imageBgColorSettings[index] || { enabled: false, color: '#ffffff' };
         const isBlurPreset = (preset === 'blur');
 
@@ -4143,7 +4296,7 @@
       }
 
       if (blur && blur.enabled) {
-        drawBlurredBg(ctx, img, dims.w, dims.h, blur.intensity || 20);
+        drawBlurredBg(ctx, img, dims.w, dims.h, blur.intensity || 20, blur.bgZoom || 1.3);
       }
 
       const { drawWidth, drawHeight } = computeDrawSize(dims, crop, isBlurPreset, img);
@@ -4202,10 +4355,14 @@
         const blur = imageBlurSettings[editingIndex] || {};
         showBackgroundBlur = blur.enabled || false;
         backgroundBlurIntensity = blur.intensity || 20;
+        backgroundBlurZoom = blur.bgZoom || 1.3;
+
         blurToggle.classList.toggle('on', showBackgroundBlur);
         blurIntensityGroup.classList.toggle('visible', showBackgroundBlur);
         document.getElementById('blurIntensitySlider').value = backgroundBlurIntensity;
         document.getElementById('blurIntensityValue').textContent = backgroundBlurIntensity + 'px';
+        document.getElementById('blurBgZoomSlider').value = backgroundBlurZoom;
+        document.getElementById('blurBgZoomValue').textContent = Math.round(backgroundBlurZoom * 100) + '%';
         
         const bgColor = imageBgColorSettings[editingIndex] || { enabled: false, color: '#ffffff' };
         showBgColor = bgColor.enabled;
@@ -4255,7 +4412,7 @@
       cropCanvas.height = dims.h;
 
       const shadow = { opacity: shadowOpacity, direction: shadowDirection, distance: shadowDistance, enabled: showShadow };
-      const blur = { enabled: showBackgroundBlur, intensity: backgroundBlurIntensity };
+      const blur = { enabled: showBackgroundBlur, intensity: backgroundBlurIntensity, bgZoom: backgroundBlurZoom };
       const bgColor = { enabled: showBgColor, color: bgColorValue };
       const drawCheckerboard = (!showBgColor || !bgColor.enabled);
 
@@ -4310,7 +4467,7 @@
       }
     }
 
-    function drawBlurredBg(ctx, img, canvasW, canvasH, intensity) {
+    function drawBlurredBg(ctx, img, canvasW, canvasH, intensity, bgZoom = 1.3) {
       ctx.save();
       ctx.filter = `blur(${intensity}px) brightness(0.6)`;
       const imgRatio = img.width / img.height;
@@ -4319,7 +4476,7 @@
       if (imgRatio < canvasRatio) { drawW = canvasW; drawH = canvasW / imgRatio; } 
       else { drawH = canvasH; drawW = canvasH * imgRatio; }
       ctx.translate(canvasW/2, canvasH/2);
-      ctx.scale(1.3, 1.3); 
+      ctx.scale(bgZoom, bgZoom); 
       ctx.drawImage(img, -drawW/2, -drawH/2, drawW, drawH);
       ctx.restore();
     }
@@ -4341,7 +4498,7 @@
           const dims = presetDimensions[preset] || presetDimensions['1920x1080'];
           const crop = cropData[i] || { zoom: 1, offsetX: 0, offsetY: 0 };
           const shadow = imageShadowSettings[i] || { opacity: 0.3, direction: 180, distance: 4, enabled: false };
-          const blur = imageBlurSettings[i] || { enabled: false, intensity: 10 };
+          const blur = imageBlurSettings[i] || { enabled: false, intensity: 10, bgZoom: 1.3 };
           const bgColor = imageBgColorSettings[i] || { enabled: false, color: '#ffffff' };
           const isBlurPreset = (preset === 'blur');
 
@@ -4411,5 +4568,3 @@
   </script>
 </body>
 </html>
-index.html
-Affichage de index.html.
