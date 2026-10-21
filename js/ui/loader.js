@@ -37,7 +37,16 @@ function buildOverlay() {
       <div class="px-loader-title"><span class="px-loader-title-text">CHARGEMENT</span><span class="px-dots" aria-hidden="true"></span></div>
       <div class="px-loader-stage" aria-hidden="true">
         <div class="px-ghost"></div>
-        <div class="cl-spinner"></div>
+        <svg class="cl-ghost" viewBox="0 0 64 64" width="56" height="56" aria-hidden="true">
+          <defs><linearGradient id="clGhostGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c4b5fd"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient></defs>
+          <ellipse class="cl-ghost-shadow" cx="32" cy="62" rx="18" ry="2.5"/>
+          <g class="cl-ghost-body">
+            <path class="cl-skirt cl-skirt-a" d="M8 56V30C8 15 18 6 32 6s24 9 24 24v26q-4 -7 -8 0q-4 7 -8 0q-4 -7 -8 0q-4 7 -8 0q-4 -7 -8 0q-4 7 -8 0Z"/>
+            <path class="cl-skirt cl-skirt-b" d="M8 56V30C8 15 18 6 32 6s24 9 24 24v26q-4 7 -8 0q-4 -7 -8 0q-4 7 -8 0q-4 -7 -8 0q-4 7 -8 0q-4 -7 -8 0Z"/>
+            <ellipse cx="23" cy="29" rx="6.5" ry="7.5" fill="#fff"/><ellipse cx="41" cy="29" rx="6.5" ry="7.5" fill="#fff"/>
+            <circle class="cl-pupil" cx="25.5" cy="30" r="3.4" fill="#312e81"/><circle class="cl-pupil" cx="43.5" cy="30" r="3.4" fill="#312e81"/>
+          </g>
+        </svg>
       </div>
       <div class="px-segments" aria-hidden="true">${'<i></i>'.repeat(SEGMENTS)}</div>
       <div class="cl-bar" aria-hidden="true"><div class="cl-bar-fill"></div></div>
@@ -67,6 +76,7 @@ function updateOverlay() {
   overlay.querySelector('.px-loader-text').textContent = text;
   // le fantôme avance le long de la jauge
   overlay.querySelector('.px-ghost').style.left = `calc(${pct}% - ${(pct / 100) * 48}px)`;
+  overlay.querySelector('.cl-ghost').style.left = `calc(${pct}% - ${(pct / 100) * 56}px)`;
 }
 
 function showOverlay() {

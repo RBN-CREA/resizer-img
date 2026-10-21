@@ -259,27 +259,6 @@ html.px-theme .px-dialog .btn {
   font-size: 10px;
 }
 
-/* ---------- Confettis ---------- */
-html.px-theme .px-confetti {
-  position: fixed;
-  inset: 0;
-  z-index: 3500;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-html.px-theme .px-confetti i {
-  position: absolute;
-  top: -20px;
-  animation-name: px-fall;
-  animation-timing-function: steps(10, end);
-  animation-fill-mode: forwards;
-}
-
-@keyframes px-fall {
-  to { transform: translateY(105vh) rotate(180deg); }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .px-ghost, .px-dots::after, .status-bar.error::before { animation: none; }
   .px-loader.visible, .status-bar.visible, .toast.visible, .px-dialog { animation: none; }

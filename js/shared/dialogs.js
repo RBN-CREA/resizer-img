@@ -186,5 +186,5 @@ function showExportResult(entries) {
   overlay.addEventListener('click', (e) => { if (e.target === overlay || e.target.closest('[data-act="ok"]')) close(); });
   document.body.appendChild(overlay);
   overlay.querySelector('[data-act="ok"]').focus();
-  if (type !== 'error') pixelConfetti();
+  if (type !== 'error') pixelConfetti(overlay.querySelector('.px-result-box'));
 }
