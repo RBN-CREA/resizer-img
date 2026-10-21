@@ -135,6 +135,13 @@ export function endExportReport() {
   if (entries && entries.length) showExportResult(entries);
 }
 
+// Icônes animées du style classique (le style pixel utilise les sprites de pixel.js)
+const RESULT_ICONS = {
+  success: '<svg class="cl-result-icon" viewBox="0 0 52 52" aria-hidden="true"><circle class="cl-ring" pathLength="1" cx="26" cy="26" r="24"/><path class="cl-mark" pathLength="1" d="M14 27l8 8 16-17"/></svg>',
+  error: '<svg class="cl-result-icon" viewBox="0 0 52 52" aria-hidden="true"><circle class="cl-ring" pathLength="1" cx="26" cy="26" r="24"/><path class="cl-mark" pathLength="1" d="M18 18l16 16M34 18L18 34"/></svg>',
+  warning: '<svg class="cl-result-icon" viewBox="0 0 52 52" aria-hidden="true"><path class="cl-ring" pathLength="1" d="M26 5L49 45H3Z"/><path class="cl-mark" pathLength="1" d="M26 20v13M26 38.5v.5"/></svg>'
+};
+
 // entry : { type: 'success' | 'error', lines: string[], errors?: string[] }
 function showExportResult(entries) {
   const okCount = entries.filter(e => e.type === 'success').length;
@@ -152,6 +159,7 @@ function showExportResult(entries) {
   overlay.innerHTML = `
     <div class="modal px-dialog px-result-box" data-type="${type}">
       <div class="px-result-icon" aria-hidden="true"></div>
+      ${RESULT_ICONS[type]}
       <h2 class="px-result-title" id="exportResultTitle"></h2>
       <ul class="px-result-lines"></ul>
       <ul class="px-result-errors"></ul>

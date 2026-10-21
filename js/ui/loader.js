@@ -37,11 +37,13 @@ function buildOverlay() {
       <div class="px-loader-title"><span class="px-loader-title-text">CHARGEMENT</span><span class="px-dots" aria-hidden="true"></span></div>
       <div class="px-loader-stage" aria-hidden="true">
         <div class="px-ghost"></div>
+        <div class="cl-spinner"></div>
       </div>
       <div class="px-segments" aria-hidden="true">${'<i></i>'.repeat(SEGMENTS)}</div>
+      <div class="cl-bar" aria-hidden="true"><div class="cl-bar-fill"></div></div>
       <div class="px-loader-pct">0%</div>
       <div class="px-loader-text"></div>
-      <button type="button" class="px-btn">MASQUER</button>
+      <button type="button" class="px-btn">Masquer</button>
     </div>`;
   el.querySelector('.px-btn').addEventListener('click', () => { dismissed = true; hideOverlay(); });
   document.body.appendChild(el);
@@ -59,6 +61,7 @@ function updateOverlay() {
   const lit = Math.floor((pct / 100) * SEGMENTS);
   overlay.querySelectorAll('.px-segments i').forEach((seg, i) => seg.classList.toggle('on', i < lit));
   overlay.querySelector('.px-loader-pct').textContent = Math.round(pct) + '%';
+  overlay.querySelector('.cl-bar-fill').style.width = pct + '%';
   const text = document.getElementById(activeSource.text).textContent;
   overlay.querySelector('.px-loader-title-text').textContent = titleFor(text);
   overlay.querySelector('.px-loader-text').textContent = text;

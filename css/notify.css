@@ -1,0 +1,250 @@
+/* ===== Écran de chargement, messages et notifications — style CLASSIQUE (par défaut) =====
+   Le style pixel art équivalent est dans pixel.css (activé par html.px-theme). */
+
+/* Éléments propres à un seul style : masqués dans l'autre */
+.px-ghost, .px-segments, .px-result-icon { display: none; }
+html.px-theme .px-ghost, html.px-theme .px-result-icon { display: block; }
+html.px-theme .cl-spinner, html.px-theme .cl-bar, html.px-theme .cl-result-icon { display: none; }
+
+@keyframes cl-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes cl-rise { from { opacity: 0; transform: translateY(14px) scale(0.97); } to { opacity: 1; transform: none; } }
+@keyframes cl-spin { to { transform: rotate(360deg); } }
+@keyframes cl-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@keyframes cl-draw { to { stroke-dashoffset: 0; } }
+@keyframes cl-pop { 0% { transform: scale(0.6); opacity: 0; } 70% { transform: scale(1.08); } 100% { transform: scale(1); opacity: 1; } }
+@keyframes cl-shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+
+/* ---------- Écran de chargement ---------- */
+.px-loader {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 2500;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(8, 8, 14, 0.72);
+  backdrop-filter: blur(8px);
+}
+
+.px-loader.visible { display: flex; animation: cl-fade 0.25s ease; }
+
+.px-loader-box {
+  width: min(460px, 100%);
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+  animation: cl-rise 0.3s ease;
+}
+
+.px-loader-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+/* Le titre arrive en capitales ("EXPORT") : on l'affiche en phrase ("Export en cours…") */
+html:not(.px-theme) .px-loader-title-text { text-transform: lowercase; display: inline-block; }
+html:not(.px-theme) .px-loader-title-text::first-letter { text-transform: uppercase; }
+html:not(.px-theme) .px-loader-title-text::after { content: ' en cours'; }
+
+/* Points de suspension animés */
+.px-dots::after { content: ''; animation: px-dots 1.2s steps(1, end) infinite; }
+
+.px-loader-stage { display: flex; justify-content: center; padding: 4px 0; }
+
+.cl-spinner {
+  width: 44px;
+  height: 44px;
+  border: 4px solid var(--surface-3);
+  border-top-color: var(--accent-hover);
+  border-radius: 50%;
+  animation: cl-spin 0.8s linear infinite;
+}
+
+.cl-bar {
+  height: 10px;
+  background: var(--surface-3);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.cl-bar-fill {
+  height: 100%;
+  width: 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), #a855f7, var(--accent));
+  background-size: 200% 100%;
+  animation: cl-shimmer 2.4s linear infinite;
+  transition: width 0.3s ease;
+}
+
+.px-loader-pct {
+  align-self: flex-end;
+  font-size: 1.25rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent-hover);
+}
+
+.px-loader-text {
+  min-height: 2.8em;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.px-btn {
+  align-self: center;
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  padding: 10px 18px;
+  color: var(--text);
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.px-btn:hover { background: var(--surface-2); border-color: var(--border-hover); }
+
+/* ---------- Messages d'état en bas de la zone de travail ---------- */
+.status-bar::before {
+  content: '';
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+}
+
+.status-bar.success::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2322c55e' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='m7.5 12.5 3 3 6-6.5'/%3E%3C/svg%3E");
+}
+
+.status-bar.error::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ef4444' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='m9 9 6 6m0-6-6 6'/%3E%3C/svg%3E");
+  animation: cl-shake 0.45s ease 1;
+}
+
+.status-bar.visible { animation: cl-rise 0.3s ease; }
+
+/* ---------- Messages ponctuels (toasts) ---------- */
+.toast.visible { animation: cl-rise 0.25s ease; }
+
+#msgToast::before {
+  content: '';
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f87171' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 7.5v5.5m0 3.5v.01'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+/* ---------- Notification de fin d'export ---------- */
+.px-result { z-index: 2800; }
+
+.px-result-box {
+  max-width: 460px;
+  padding: 32px 28px 26px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  text-align: center;
+  animation: cl-rise 0.3s ease;
+}
+
+.px-result-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.cl-result-icon { width: 76px; height: 76px; fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; animation: cl-pop 0.45s ease; }
+.cl-result-icon .cl-ring { stroke-dasharray: 1; stroke-dashoffset: 1; animation: cl-draw 0.55s ease 0.05s forwards; }
+.cl-result-icon .cl-mark { stroke-dasharray: 1; stroke-dashoffset: 1; animation: cl-draw 0.4s ease 0.5s forwards; }
+.px-result-box[data-type="success"] .cl-result-icon { stroke: var(--success); }
+.px-result-box[data-type="error"] .cl-result-icon { stroke: var(--error); animation: cl-pop 0.45s ease, cl-shake 0.45s ease 0.5s 1; }
+.px-result-box[data-type="warning"] .cl-result-icon { stroke: #f59e0b; }
+.px-result-box[data-type="success"] .px-result-title { color: #86efac; }
+.px-result-box[data-type="error"] .px-result-title { color: #fca5a5; }
+.px-result-box[data-type="warning"] .px-result-title { color: #fcd34d; }
+
+.px-result-lines,
+.px-result-errors {
+  list-style: none;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+.px-result-lines li {
+  padding: 10px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  word-break: break-word;
+}
+
+.px-result-errors li {
+  padding: 10px 14px;
+  background: var(--error-bg);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: var(--radius-sm);
+  color: #fca5a5;
+  word-break: break-word;
+}
+
+.px-result-box .px-btn {
+  min-width: 120px;
+  margin-top: 4px;
+  background: var(--accent);
+  border-color: transparent;
+  color: #fff;
+}
+
+.px-result-box .px-btn:hover { background: var(--accent-hover); box-shadow: 0 4px 20px var(--accent-glow); }
+
+/* ---------- Confettis (style classique : papillotes arrondies qui tournent) ---------- */
+.px-confetti {
+  position: fixed;
+  inset: 0;
+  z-index: 3500;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.px-confetti i {
+  position: absolute;
+  top: -24px;
+  border-radius: 2px;
+  animation: cl-fall linear forwards;
+}
+
+.px-confetti i.round { border-radius: 50%; }
+
+@keyframes cl-fall {
+  0% { transform: translate3d(0, 0, 0) rotate(0); opacity: 1; }
+  85% { opacity: 1; }
+  100% { transform: translate3d(var(--dx, 0), 105vh, 0) rotate(var(--rot, 720deg)); opacity: 0.9; }
+}
+
+/* Le style pixel garde ses carrés qui tombent par paliers */
+html.px-theme .px-confetti i { border-radius: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .px-loader.visible, .px-loader-box, .status-bar.visible, .status-bar.error::before, .toast.visible,
+  .px-result-box, .cl-result-icon, .cl-bar-fill, .cl-spinner { animation: none !important; }
+  .cl-result-icon .cl-ring, .cl-result-icon .cl-mark { stroke-dashoffset: 0; }
+}

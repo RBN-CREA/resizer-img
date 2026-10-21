@@ -6,7 +6,7 @@
 }
 
 /* Cadre « pixel » : coins crantés + ombre portée dure */
-.px-box {
+html.px-theme .px-box {
   position: relative;
   background: var(--surface);
   --bc: var(--px-line);
@@ -18,7 +18,7 @@
     calc(var(--px) * 3) calc(var(--px) * 3) 0 0 rgba(0, 0, 0, 0.55);
 }
 
-.px-ghost {
+html.px-theme .px-ghost {
   position: absolute;
   bottom: 0;
   width: 48px;
@@ -40,7 +40,7 @@
 }
 
 /* Points de suspension animés */
-.px-dots::after {
+html.px-theme .px-dots::after {
   content: '';
   animation: px-dots 1.2s steps(1, end) infinite;
 }
@@ -53,7 +53,7 @@
 }
 
 /* ---------- Écran de chargement ---------- */
-.px-loader {
+html.px-theme .px-loader {
   display: none;
   position: fixed;
   inset: 0;
@@ -66,7 +66,7 @@
     rgba(6, 6, 12, 0.88);
 }
 
-.px-loader.visible {
+html.px-theme .px-loader.visible {
   display: flex;
   animation: px-pop 0.3s steps(4, end);
 }
@@ -76,7 +76,7 @@
   to { opacity: 1; transform: scale(1); }
 }
 
-.px-loader-box {
+html.px-theme .px-loader-box {
   width: min(560px, 100%);
   padding: 28px 28px 24px;
   display: flex;
@@ -86,19 +86,19 @@
   color: var(--text);
 }
 
-.px-loader-title {
+html.px-theme .px-loader-title {
   font-size: 16px;
   line-height: 1.4;
   color: var(--px-line);
   letter-spacing: 1px;
 }
 
-.px-loader-stage {
+html.px-theme .px-loader-stage {
   position: relative;
   height: 52px;
 }
 
-.px-segments {
+html.px-theme .px-segments {
   display: grid;
   grid-template-columns: repeat(20, 1fr);
   gap: 4px;
@@ -107,24 +107,24 @@
   outline: 4px solid #3f3f5a;
 }
 
-.px-segments i {
+html.px-theme .px-segments i {
   display: block;
   height: 20px;
   background: #1c1c2e;
 }
 
-.px-segments i.on {
+html.px-theme .px-segments i.on {
   background: var(--accent-hover);
   box-shadow: inset 0 -4px 0 0 #4f46e5, inset 0 4px 0 0 #c7d2fe;
 }
 
-.px-loader-pct {
+html.px-theme .px-loader-pct {
   align-self: flex-end;
   font-size: 20px;
   color: #facc15;
 }
 
-.px-loader-text {
+html.px-theme .px-loader-text {
   min-height: 2.8em;
   font-family: 'Inter', sans-serif;
   font-size: 0.8125rem;
@@ -132,7 +132,7 @@
   color: var(--text-muted);
 }
 
-.px-btn {
+html.px-theme .px-btn {
   align-self: center;
   font-family: var(--px-font);
   font-size: 11px;
@@ -145,18 +145,19 @@
     0 -4px 0 0 var(--px-line), 0 4px 0 0 var(--px-line), -4px 0 0 0 var(--px-line), 4px 0 0 0 var(--px-line);
 }
 
-.px-btn:hover { background: var(--accent); }
-.px-btn:active { transform: translateY(4px); }
+html.px-theme .px-btn:hover { background: var(--accent); }
+
+html.px-theme .px-btn:active { transform: translateY(4px); }
 
 /* ---------- Barres de progression fines (images / vidéos) ---------- */
-.progress-wrap {
+html.px-theme .progress-wrap {
   position: relative;
   height: 12px;
   background: #0a0a0f;
   border-top: 4px solid #3f3f5a;
 }
 
-.progress-bar {
+html.px-theme .progress-bar {
   position: relative;
   height: 100%;
   background: repeating-linear-gradient(90deg, var(--accent-hover) 0 12px, #4f46e5 12px 16px);
@@ -164,16 +165,16 @@
 }
 
 /* ---------- Messages d'état (succès / erreur) ---------- */
-.status-bar {
+html.px-theme .status-bar {
   gap: 16px;
   padding: 14px 24px;
   border-top: 4px solid var(--px-line);
   font-family: var(--px-font);
 }
 
-.status-bar.visible { animation: px-pop 0.25s steps(3, end); }
+html.px-theme .status-bar.visible { animation: px-pop 0.25s steps(3, end); }
 
-.status-bar::before {
+html.px-theme .status-bar::before {
   content: '';
   flex-shrink: 0;
   width: 40px;
@@ -184,12 +185,15 @@
   background-size: 40px 36px;
 }
 
-.status-bar.success { border-top-color: var(--success); }
-.status-bar.success::before { background-image: var(--px-ok); }
-.status-bar.error { border-top-color: var(--error); }
-.status-bar.error::before { background-image: var(--px-err); animation: px-shake 0.6s steps(2, end) 2; }
+html.px-theme .status-bar.success { border-top-color: var(--success); }
 
-.status-bar .status-text {
+html.px-theme .status-bar.success::before { background-image: var(--px-ok); }
+
+html.px-theme .status-bar.error { border-top-color: var(--error); }
+
+html.px-theme .status-bar.error::before { background-image: var(--px-err); animation: px-shake 0.6s steps(2, end) 2; }
+
+html.px-theme .status-bar .status-text {
   font-size: 10px;
   line-height: 1.9;
   letter-spacing: 0.5px;
@@ -201,7 +205,7 @@
 }
 
 /* ---------- Toasts (annuler, messages) ---------- */
-.toast {
+html.px-theme .toast {
   font-family: var(--px-font);
   font-size: 10px;
   line-height: 1.8;
@@ -213,17 +217,17 @@
     12px 12px 0 0 rgba(0, 0, 0, 0.55);
 }
 
-.toast.visible { animation: px-pop 0.25s steps(3, end); }
+html.px-theme .toast.visible { animation: px-pop 0.25s steps(3, end); }
 
-.toast button {
+html.px-theme .toast button {
   font-family: var(--px-font);
   font-size: 10px;
   color: #facc15;
 }
 
-#msgToast { --px-line: var(--error); }
+html.px-theme #msgToast { --px-line: var(--error); }
 
-#msgToast::before {
+html.px-theme #msgToast::before {
   content: '';
   width: 30px;
   height: 27px;
@@ -233,7 +237,7 @@
 }
 
 /* ---------- Petites boîtes de dialogue (confirmation, saisie) ---------- */
-.px-dialog {
+html.px-theme .px-dialog {
   border: none;
   border-radius: 0 !important;
   box-shadow:
@@ -242,21 +246,21 @@
   animation: px-pop 0.25s steps(3, end);
 }
 
-.px-dialog .modal-header h2 {
+html.px-theme .px-dialog .modal-header h2 {
   font-family: var(--px-font);
   font-size: 13px;
   line-height: 1.5;
   color: var(--px-line);
 }
 
-.px-dialog .btn {
+html.px-theme .px-dialog .btn {
   border-radius: 0;
   font-family: var(--px-font);
   font-size: 10px;
 }
 
 /* ---------- Confettis ---------- */
-.px-confetti {
+html.px-theme .px-confetti {
   position: fixed;
   inset: 0;
   z-index: 3500;
@@ -264,7 +268,7 @@
   pointer-events: none;
 }
 
-.px-confetti i {
+html.px-theme .px-confetti i {
   position: absolute;
   top: -20px;
   animation-name: px-fall;
@@ -283,9 +287,9 @@
 }
 
 /* ---------- Fenêtre de notification de fin d'export ---------- */
-.px-result { z-index: 2800; }
+html.px-theme .px-result { z-index: 2800; }
 
-.px-result-box {
+html.px-theme .px-result-box {
   --px-line: var(--success);
   max-width: 520px;
   padding: 32px 28px 28px;
@@ -298,10 +302,11 @@
   animation: px-pop 0.3s steps(4, end);
 }
 
-.px-result-box[data-type="error"] { --px-line: var(--error); }
-.px-result-box[data-type="warning"] { --px-line: #facc15; }
+html.px-theme .px-result-box[data-type="error"] { --px-line: var(--error); }
 
-.px-result-icon {
+html.px-theme .px-result-box[data-type="warning"] { --px-line: #facc15; }
+
+html.px-theme .px-result-icon {
   width: 80px;
   height: 72px;
   image-rendering: pixelated;
@@ -309,22 +314,23 @@
   animation: px-hop 0.8s steps(1, end) infinite;
 }
 
-.px-result-box[data-type="error"] .px-result-icon { background-image: var(--px-err); background-size: 80px 72px; animation: px-shake 0.6s steps(2, end) 3; }
-.px-result-box[data-type="warning"] .px-result-icon { background-image: var(--px-star); background-size: 72px 64px; }
+html.px-theme .px-result-box[data-type="error"] .px-result-icon { background-image: var(--px-err); background-size: 80px 72px; animation: px-shake 0.6s steps(2, end) 3; }
+
+html.px-theme .px-result-box[data-type="warning"] .px-result-icon { background-image: var(--px-star); background-size: 72px 64px; }
 
 @keyframes px-hop {
   0% { transform: translateY(0); }
   50% { transform: translateY(-8px); }
 }
 
-.px-result-title {
+html.px-theme .px-result-title {
   font-size: 14px;
   line-height: 1.7;
   color: var(--px-line);
 }
 
-.px-result-lines,
-.px-result-errors {
+html.px-theme .px-result-lines,
+html.px-theme .px-result-errors {
   list-style: none;
   width: 100%;
   display: flex;
@@ -336,11 +342,28 @@
   color: var(--text);
 }
 
-.px-result-lines li { padding: 10px 14px; background: var(--surface-2); border: 3px solid var(--border); word-break: break-word; }
-.px-result-errors li { padding: 10px 14px; background: var(--error-bg); border: 3px solid var(--error); color: #fca5a5; word-break: break-word; }
+html.px-theme .px-result-lines li { padding: 10px 14px; background: var(--surface-2); border: 3px solid var(--border); word-break: break-word; }
 
-.px-result-box .px-btn { min-width: 120px; margin-top: 4px; }
+html.px-theme .px-result-errors li { padding: 10px 14px; background: var(--error-bg); border: 3px solid var(--error); color: #fca5a5; word-break: break-word; }
+
+html.px-theme .px-result-box .px-btn { min-width: 120px; margin-top: 4px; }
 
 @media (prefers-reduced-motion: reduce) {
   .px-result-icon, .px-result-box { animation: none !important; }
 }
+
+
+/* Neutralise les réglages du style classique (notify.css) qui ne s'appliquent pas au pixel */
+html.px-theme .px-loader-box,
+html.px-theme .px-result-box { border: none; }
+html.px-theme .px-loader-title,
+html.px-theme .px-loader-pct,
+html.px-theme .px-result-title,
+html.px-theme .px-btn { font-weight: 400; }
+html.px-theme .px-loader .px-btn { text-transform: uppercase; }
+html.px-theme .px-loader { backdrop-filter: none; }
+html.px-theme .px-loader-box { animation: none; }
+html.px-theme .px-result-lines,
+html.px-theme .px-result-errors { font-size: 0.9375rem; }
+html.px-theme .px-result-box .px-btn { background: var(--surface-3); color: var(--text); border: none; box-shadow: 0 -4px 0 0 var(--px-line), 0 4px 0 0 var(--px-line), -4px 0 0 0 var(--px-line), 4px 0 0 0 var(--px-line); }
+html.px-theme .px-result-box .px-btn:hover { background: var(--accent); box-shadow: 0 -4px 0 0 var(--px-line), 0 4px 0 0 var(--px-line), -4px 0 0 0 var(--px-line), 4px 0 0 0 var(--px-line); }

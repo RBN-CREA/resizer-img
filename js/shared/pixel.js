@@ -99,21 +99,34 @@ export function registerPixelSprites() {
   root.setProperty('--px-star', toDataUri(STAR[0].length, STAR.length, rects(STAR)));
 }
 
-// Gerbe de carrés qui retombent (réussite d'un export)
+// Gerbe de confettis à la réussite d'un export : carrés qui tombent par paliers (style pixel)
+// ou papillotes arrondies qui tournent (style classique)
 const CONFETTI_COLORS = ['#a78bfa', '#6366f1', '#22c55e', '#facc15', '#f472b6', '#38bdf8'];
 
-export function pixelConfetti(count = 28) {
+export function pixelConfetti(count = 40) {
   if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const pixel = document.documentElement.classList.contains('px-theme');
   const layer = document.createElement('div');
   layer.className = 'px-confetti';
   layer.setAttribute('aria-hidden', 'true');
+  const rand = (min, max) => min + Math.random() * (max - min);
   for (let i = 0; i < count; i++) {
     const p = document.createElement('i');
-    const size = [6, 8, 10][i % 3];
-    p.style.cssText = `left:${Math.random() * 100}%;width:${size}px;height:${size}px;background:${CONFETTI_COLORS[i % CONFETTI_COLORS.length]};` +
-      `animation-delay:${(Math.random() * 0.4).toFixed(2)}s;animation-duration:${(1.1 + Math.random() * 0.9).toFixed(2)}s;`;
+    const color = CONFETTI_COLORS[i % CONFETTI_COLORS.length];
+    if (pixel) {
+      const size = [6, 8, 10][i % 3];
+      p.style.cssText = `left:${Math.random() * 100}%;width:${size}px;height:${size}px;background:${color};` +
+        `animation:px-fall ${rand(1.1, 2).toFixed(2)}s steps(10, end) ${rand(0, 0.4).toFixed(2)}s forwards;`;
+    } else {
+      const w = rand(6, 11), h = rand(9, 16);
+      if (i % 4 === 0) p.className = 'round';
+      p.style.cssText = `left:${Math.random() * 100}%;width:${w.toFixed(1)}px;height:${(i % 4 === 0 ? w : h).toFixed(1)}px;background:${color};` +
+        `--dx:${rand(-140, 140).toFixed(0)}px;--rot:${rand(360, 1080).toFixed(0)}deg;` +
+        `animation-duration:${rand(1.8, 3).toFixed(2)}s;animation-delay:${rand(0, 0.5).toFixed(2)}s;` +
+        `animation-timing-function:cubic-bezier(0.25, 0.55, 0.4, 1);`;
+    }
     layer.appendChild(p);
   }
   document.body.appendChild(layer);
-  setTimeout(() => layer.remove(), 2600);
+  setTimeout(() => layer.remove(), 4200);
 }
