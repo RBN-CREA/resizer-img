@@ -58,7 +58,12 @@ export function drawCheckerboardPattern(ctx, w, h) {
 export function renderImage(ctx, img, dims, crop, shadow, blur, bgColor, isBlurPreset, drawCheckerboard = false, kenBurns = null) {
   ctx.save();
 
-  if (kenBurns && (kenBurns.scale !== 1 || kenBurns.panX !== 0 || kenBurns.panY !== 0)) {
+  const blurOn = !!(blur && blur.enabled);
+  const hasKenBurns = !!kenBurns && (kenBurns.scale !== 1 || kenBurns.panX !== 0 || kenBurns.panY !== 0);
+
+  // Sans fond flou : le mouvement s'applique à tout le cadre.
+  // Avec fond flou : le fond reste fixe et seule l'image nette zoome (voir plus bas).
+  if (hasKenBurns && !blurOn) {
     ctx.translate(dims.w / 2 + kenBurns.panX, dims.h / 2 + kenBurns.panY);
     ctx.scale(kenBurns.scale, kenBurns.scale);
     ctx.translate(-dims.w / 2, -dims.h / 2);
@@ -74,7 +79,7 @@ export function renderImage(ctx, img, dims, crop, shadow, blur, bgColor, isBlurP
     ctx.fillRect(-dims.w, -dims.h, dims.w * 3, dims.h * 3);
   }
 
-  if (blur && blur.enabled) {
+  if (blurOn) {
     drawBlurredBg(ctx, img, dims.w, dims.h, blur.intensity || 20, blur.bgZoom || 1.3);
   }
 
@@ -82,15 +87,24 @@ export function renderImage(ctx, img, dims, crop, shadow, blur, bgColor, isBlurP
   const x = dims.w / 2 + crop.offsetX - drawWidth / 2;
   const y = dims.h / 2 + crop.offsetY - drawHeight / 2;
 
+  // Fond flou : zoom de l'image nette autour de son propre centre, sans déplacement (elle reste centrée)
+  if (hasKenBurns && blurOn) {
+    const cx = x + drawWidth / 2;
+    const cy = y + drawHeight / 2;
+    ctx.translate(cx, cy);
+    ctx.scale(kenBurns.scale, kenBurns.scale);
+    ctx.translate(-cx, -cy);
+  }
+
   if (shadow && shadow.enabled && shadow.opacity > 0) {
     const rad = (shadow.direction * Math.PI) / 180;
     ctx.shadowColor = `rgba(0, 0, 0, ${shadow.opacity})`;
-    ctx.shadowBlur = (blur && blur.enabled) ? 40 : 20;
+    ctx.shadowBlur = blurOn ? 40 : 20;
     ctx.shadowOffsetX = Math.cos(rad) * shadow.distance;
     ctx.shadowOffsetY = Math.sin(rad) * shadow.distance;
   }
   ctx.drawImage(img, x, y, drawWidth, drawHeight);
-  
+
   ctx.restore();
 }
 
