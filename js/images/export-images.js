@@ -2,6 +2,7 @@ import { showStatus } from './dom.js';
 import { items } from './state.js';
 import { dimsOf } from './dims.js';
 import { renderImage } from './render.js';
+import { APP } from '../shared/config.js';
 
 export function formatBytes(n) {
   return n >= 1048576 ? (n / 1048576).toFixed(1).replace('.', ',') + ' Mo' : Math.max(1, Math.round(n / 1024)) + ' Ko';
@@ -17,32 +18,37 @@ export async function processImagesCustom(format, structure, targetFolders, { qu
   let countExported = 0;
   const todo = items.filter(it => targetFolders.includes(it.folder));
 
-  for (let i = 0; i < todo.length; i++) {
-    const it = todo[i];
-    try {
-      const preset = it.preset || '1920x1080';
-      const dims = dimsOf(it);
-      const isBlurPreset = (preset === 'blur');
+  // Les chemins dans le ZIP sont fixés d'avance (ordre stable, pas d'écrasement entre doublons)
+  const ext = format === 'jpg' ? 'jpeg' : format; // .jpeg : extension reconnue partout (Premiere Pro compris)
+  const jobs = todo.map(it => {
+    const cleanName = it.file.name.replace(/\.[^.]+$/, '') + suffix;
+    const dir = structure === 'folders' ? `${it.folder}/` : '';
+    let pathInZip = `${dir}${cleanName}.${ext}`;
+    for (let n = 2; usedPaths.has(pathInZip.toLowerCase()); n++) pathInZip = `${dir}${cleanName} (${n}).${ext}`;
+    usedPaths.add(pathInZip.toLowerCase());
+    return { it, pathInZip };
+  });
 
-      const blob = await resizeImage(it.file, dims, it.crop, it.shadow, it.blur, format, it.bgColor, isBlurPreset, false, quality);
-
-      const cleanName = it.file.name.replace(/\.[^.]+$/, '') + suffix;
-      const dir = structure === 'folders' ? `${it.folder}/` : '';
-
-      // Deux fichiers de même nom (dossiers regroupés) ne doivent pas s'écraser
-      const ext = format === 'jpg' ? 'jpeg' : format; // .jpeg : extension reconnue partout (Premiere Pro compris)
-      let pathInZip = `${dir}${cleanName}.${ext}`;
-      for (let n = 2; usedPaths.has(pathInZip.toLowerCase()); n++) pathInZip = `${dir}${cleanName} (${n}).${ext}`;
-      usedPaths.add(pathInZip.toLowerCase());
-
-      zip.file(pathInZip, blob, { binary: true });
-      countExported++;
-    } catch (e) {
-      console.error('Export image échoué :', it.file.name, e);
-      failed.push(it.file.name);
+  // Plusieurs images sont traitées en parallèle (décodage + rendu + encodage)
+  let nextJob = 0;
+  let finished = 0;
+  async function worker() {
+    while (nextJob < jobs.length) {
+      const { it, pathInZip } = jobs[nextJob++];
+      try {
+        const preset = it.preset || '1920x1080';
+        const blob = await resizeImage(it.file, dimsOf(it), it.crop, it.shadow, it.blur, format, it.bgColor, preset === 'blur', false, quality);
+        zip.file(pathInZip, blob, { binary: true });
+        countExported++;
+      } catch (e) {
+        console.error('Export image échoué :', it.file.name, e);
+        failed.push(it.file.name);
+      }
+      finished++;
+      document.getElementById('progressBar').style.width = (finished / jobs.length * 100) + '%';
     }
-    document.getElementById('progressBar').style.width = ((i + 1) / todo.length * 100) + '%';
   }
+  await Promise.all(Array.from({ length: Math.min(APP.EXPORT_CONCURRENCY, jobs.length) }, worker));
 
   if (countExported === 0) {
     document.getElementById('progressWrap').classList.remove('visible');
@@ -69,21 +75,41 @@ export async function processImagesCustom(format, structure, targetFolders, { qu
   }
 }
 
-export function resizeImage(file, dims, crop, shadow, blur, format, bgColor, isBlurPreset, drawCheckerboard, quality = 0.95) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = dims.w;
-      canvas.height = dims.h;
-      renderImage(canvas.getContext('2d'), img, dims, crop, shadow, blur, bgColor, isBlurPreset, drawCheckerboard, null);
+// Décode l'image hors du fil principal quand c'est possible (ImageBitmap), sinon via un <img>
+async function decodeImage(file) {
+  if (typeof createImageBitmap === 'function') {
+    try {
+      return { source: await createImageBitmap(file), release: (src) => src.close() };
+    } catch (e) { /* format non pris en charge par createImageBitmap : repli sur <img> */ }
+  }
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((resolve, reject) => {
+      const im = new Image();
+      im.onload = () => resolve(im);
+      im.onerror = () => reject(new Error('Image illisible'));
+      im.src = url;
+    });
+    return { source: img, release: () => {} };
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+export async function resizeImage(file, dims, crop, shadow, blur, format, bgColor, isBlurPreset, drawCheckerboard, quality = 0.95) {
+  const { source, release } = await decodeImage(file);
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = dims.w;
+    canvas.height = dims.h;
+    renderImage(canvas.getContext('2d'), source, dims, crop, shadow, blur, bgColor, isBlurPreset, drawCheckerboard, null);
+    return await new Promise((resolve, reject) => {
       canvas.toBlob(blob => {
-         URL.revokeObjectURL(img.src);
-         if (blob) resolve(blob);
-         else reject(new Error('Encodage impossible (image trop grande ?)'));
+        if (blob) resolve(blob);
+        else reject(new Error('Encodage impossible (image trop grande ?)'));
       }, format === 'jpg' ? 'image/jpeg' : 'image/' + format, format === 'png' ? undefined : quality);
-    };
-    img.onerror = () => { URL.revokeObjectURL(img.src); reject(new Error('Image illisible')); };
-    img.src = URL.createObjectURL(file);
-  });
+    });
+  } finally {
+    release(source);
+  }
 }

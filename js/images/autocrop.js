@@ -35,12 +35,26 @@ export async function runAutoCropLogic(img, preset, zoomLvl, dims) {
   if (!isFaceApiLoaded) {
     await Promise.race([loadFaceAI(), new Promise(res => setTimeout(res, APP.FACE_AI_WAIT_MS))]);
   }
+
+  // Les détecteurs n'ont pas besoin de la pleine résolution (face-api travaille de toute façon à ~416 px,
+  // smartcrop à 256 px) : on leur donne une copie réduite, puis on remet les coordonnées à l'échelle.
+  const k = Math.min(1, APP.AUTOCROP_MAX_SIDE / Math.max(img.width, img.height));
+  let detectSource = img;
+  if (k < 1) {
+    detectSource = document.createElement('canvas');
+    detectSource.width = Math.max(1, Math.round(img.width * k));
+    detectSource.height = Math.max(1, Math.round(img.height * k));
+    detectSource.getContext('2d').drawImage(img, 0, 0, detectSource.width, detectSource.height);
+  }
+  const toFullX = detectSource.width ? img.width / detectSource.width : 1;
+  const toFullY = detectSource.height ? img.height / detectSource.height : 1;
+
   if (isFaceApiLoaded) {
     try {
-      const detection = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions());
+      const detection = await faceapi.detectSingleFace(detectSource, new faceapi.TinyFaceDetectorOptions());
       if (detection) {
-        subjectX = detection.box.x + (detection.box.width / 2);
-        subjectY = detection.box.y + (detection.box.height / 2);
+        subjectX = (detection.box.x + (detection.box.width / 2)) * toFullX;
+        subjectY = (detection.box.y + (detection.box.height / 2)) * toFullY;
         method = 'face';
       }
     } catch (e) { console.warn('Détection de visage échouée :', e); }
@@ -48,10 +62,10 @@ export async function runAutoCropLogic(img, preset, zoomLvl, dims) {
 
   if (method === 'center' && window.SmartCrop) {
     try {
-      const result = await SmartCrop.crop(img, { width: dims.w, height: dims.h });
+      const result = await SmartCrop.crop(detectSource, { width: dims.w, height: dims.h });
       if (result && result.topCrop) {
-        subjectX = result.topCrop.x + (result.topCrop.width / 2);
-        subjectY = result.topCrop.y + (result.topCrop.height / 2);
+        subjectX = (result.topCrop.x + (result.topCrop.width / 2)) * toFullX;
+        subjectY = (result.topCrop.y + (result.topCrop.height / 2)) * toFullY;
         method = 'object';
       }
     } catch (e) { console.warn('Détection de sujet échouée :', e); }

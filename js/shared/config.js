@@ -12,7 +12,9 @@ export const APP = {
   SNAP_PX: 15,                     // distance d'aimantation aux repères de l'éditeur
   UNDO_LIMIT: 20,                  // étapes d'annulation conservées
   TOAST_MS: 8000,                  // durée d'affichage des messages
-  FACE_AI_WAIT_MS: 8000            // attente max du modèle de détection de visages
+  FACE_AI_WAIT_MS: 8000,           // attente max du modèle de détection de visages
+  AUTOCROP_MAX_SIDE: 640,          // les détections (visage, sujet) travaillent sur une image réduite à ce côté max
+  EXPORT_CONCURRENCY: Math.max(2, Math.min(4, (navigator.hardwareConcurrency || 4) - 1)) // images traitées en parallèle à l'export ZIP
 };
 
 export const defaultShadow = () => ({ enabled: false, opacity: 0.3, direction: 180, distance: 4 });
