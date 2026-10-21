@@ -1909,8 +1909,9 @@
         const dir = structure === 'folders' ? `${it.folder}/` : '';
 
         // Deux fichiers de même nom (dossiers regroupés) ne doivent pas s'écraser
-        let pathInZip = `${dir}${cleanName}.${format}`;
-        for (let n = 2; usedPaths.has(pathInZip.toLowerCase()); n++) pathInZip = `${dir}${cleanName} (${n}).${format}`;
+        const ext = format === 'jpg' ? 'jpeg' : format; // .jpeg : extension reconnue partout (Premiere Pro compris)
+        let pathInZip = `${dir}${cleanName}.${ext}`;
+        for (let n = 2; usedPaths.has(pathInZip.toLowerCase()); n++) pathInZip = `${dir}${cleanName} (${n}).${ext}`;
         usedPaths.add(pathInZip.toLowerCase());
 
         zip.file(pathInZip, blob, { binary: true });
