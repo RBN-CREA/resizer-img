@@ -43,10 +43,10 @@ Le code est en modules ES (`<script type="module">`) : il doit être servi en HT
 
 ```
 index.html              page et structure
-css/                    fonts, base, components, layout, gallery, sidebar, status, modals, video, feedback, responsive
+css/                    fonts, base, components, layout, gallery, sidebar, status, modals, video, feedback, pixel (habillage pixel art), responsive
 vendor/                 bibliothèques tierces, modèle de détection de visages, police Inter
 js/main.js              point d'entrée
-js/shared/              réglages (APP), échappement HTML, boîtes de dialogue, utilitaires d'encodage vidéo
+js/shared/              réglages (APP), échappement HTML, boîtes de dialogue, sprites pixel art, utilitaires d'encodage vidéo
 js/images/              onglet Images
   state.js              liste des images (un objet par image), sélection, état partagé
   undo.js               annulation (Ctrl/Cmd+Z)
@@ -61,7 +61,7 @@ js/images/              onglet Images
   export-slideshow.js   diaporama MP4
   gallery-shortcuts.js  raccourcis clavier de la galerie
 js/video/               onglet Vidéos : import, analyse, liste, aperçu, réglages, export
-js/ui/                  onglets, accessibilité, détection WebCodecs, préférences
+js/ui/                  onglets, accessibilité, écran de chargement pixel art, détection WebCodecs, préférences
 ```
 
 Bibliothèques (JSZip, face-api et son modèle, smartcrop, mp4-muxer) et police Inter hébergées dans `vendor/` : l'application ne fait aucune requête vers un service externe (ni CDN, ni Google Fonts). Détails et licences dans `vendor/README.md`.

@@ -9,6 +9,7 @@ Ces fichiers sont copiés tels quels depuis leurs sources officielles, pour que 
 | `models/tiny_face_detector_model-*` | modèle Tiny Face Detector de face-api | 1.7.15 | MIT | npm (jsDelivr) |
 | `smartcrop.js` | [smartcrop](https://github.com/jwagner/smartcrop.js) | 2.0.5 | MIT | npm (unpkg) |
 | `mp4-muxer.js` | [mp4-muxer](https://github.com/Vanilagy/mp4-muxer) | 5.2.2 | MIT | npm (unpkg) |
+| `fonts/press-start-2p-latin.woff2` | [Press Start 2P](https://fonts.google.com/specimen/Press+Start+2P) (sous-ensemble latin) | v16 | SIL Open Font License 1.1 | Google Fonts |
 | `fonts/inter-*.woff2` | [Inter](https://rsms.me/inter/) (variable, sous-ensembles latin et latin étendu) | 4.x | SIL Open Font License 1.1 | Google Fonts |
 
 ## Empreintes SHA-384

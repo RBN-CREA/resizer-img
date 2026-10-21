@@ -1,0 +1,283 @@
+/* ===== Habillage pixel art : écrans de chargement, barres de progression, messages ===== */
+:root {
+  --px: 4px;
+  --px-font: 'Press Start 2P', 'Courier New', monospace;
+  --px-line: #a5b4fc;
+}
+
+/* Cadre « pixel » : coins crantés + ombre portée dure */
+.px-box {
+  position: relative;
+  background: var(--surface);
+  --bc: var(--px-line);
+  box-shadow:
+    0 calc(var(--px) * -1) 0 0 var(--bc),
+    0 var(--px) 0 0 var(--bc),
+    calc(var(--px) * -1) 0 0 0 var(--bc),
+    var(--px) 0 0 0 var(--bc),
+    calc(var(--px) * 3) calc(var(--px) * 3) 0 0 rgba(0, 0, 0, 0.55);
+}
+
+.px-ghost {
+  position: absolute;
+  bottom: 0;
+  width: 48px;
+  height: 48px;
+  background: var(--px-ghost) 0 0 / 96px 48px no-repeat;
+  image-rendering: pixelated;
+  animation: px-walk 0.5s steps(1, end) infinite, px-bob 0.5s steps(1, end) infinite;
+  pointer-events: none;
+}
+
+@keyframes px-walk {
+  0% { background-position: 0 0; }
+  50% { background-position: -48px 0; }
+}
+
+@keyframes px-bob {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+/* Points de suspension animés */
+.px-dots::after {
+  content: '';
+  animation: px-dots 1.2s steps(1, end) infinite;
+}
+
+@keyframes px-dots {
+  0% { content: ''; }
+  25% { content: '.'; }
+  50% { content: '..'; }
+  75% { content: '...'; }
+}
+
+/* ---------- Écran de chargement ---------- */
+.px-loader {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 2500;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background:
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.03) 0 2px, transparent 2px 4px),
+    rgba(6, 6, 12, 0.88);
+}
+
+.px-loader.visible {
+  display: flex;
+  animation: px-pop 0.3s steps(4, end);
+}
+
+@keyframes px-pop {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.px-loader-box {
+  width: min(560px, 100%);
+  padding: 28px 28px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  font-family: var(--px-font);
+  color: var(--text);
+}
+
+.px-loader-title {
+  font-size: 16px;
+  line-height: 1.4;
+  color: var(--px-line);
+  letter-spacing: 1px;
+}
+
+.px-loader-stage {
+  position: relative;
+  height: 52px;
+}
+
+.px-segments {
+  display: grid;
+  grid-template-columns: repeat(20, 1fr);
+  gap: 4px;
+  padding: 6px;
+  background: #0a0a0f;
+  outline: 4px solid #3f3f5a;
+}
+
+.px-segments i {
+  display: block;
+  height: 20px;
+  background: #1c1c2e;
+}
+
+.px-segments i.on {
+  background: var(--accent-hover);
+  box-shadow: inset 0 -4px 0 0 #4f46e5, inset 0 4px 0 0 #c7d2fe;
+}
+
+.px-loader-pct {
+  align-self: flex-end;
+  font-size: 20px;
+  color: #facc15;
+}
+
+.px-loader-text {
+  min-height: 2.8em;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.px-btn {
+  align-self: center;
+  font-family: var(--px-font);
+  font-size: 11px;
+  padding: 12px 16px;
+  color: var(--text);
+  background: var(--surface-3);
+  border: none;
+  cursor: pointer;
+  box-shadow:
+    0 -4px 0 0 var(--px-line), 0 4px 0 0 var(--px-line), -4px 0 0 0 var(--px-line), 4px 0 0 0 var(--px-line);
+}
+
+.px-btn:hover { background: var(--accent); }
+.px-btn:active { transform: translateY(4px); }
+
+/* ---------- Barres de progression fines (images / vidéos) ---------- */
+.progress-wrap {
+  position: relative;
+  height: 12px;
+  background: #0a0a0f;
+  border-top: 4px solid #3f3f5a;
+}
+
+.progress-bar {
+  position: relative;
+  height: 100%;
+  background: repeating-linear-gradient(90deg, var(--accent-hover) 0 12px, #4f46e5 12px 16px);
+  transition: width 0.3s steps(6, end);
+}
+
+/* ---------- Messages d'état (succès / erreur) ---------- */
+.status-bar {
+  gap: 16px;
+  padding: 14px 24px;
+  border-top: 4px solid var(--px-line);
+  font-family: var(--px-font);
+}
+
+.status-bar.visible { animation: px-pop 0.25s steps(3, end); }
+
+.status-bar::before {
+  content: '';
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  image-rendering: pixelated;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 40px 36px;
+}
+
+.status-bar.success { border-top-color: var(--success); }
+.status-bar.success::before { background-image: var(--px-ok); }
+.status-bar.error { border-top-color: var(--error); }
+.status-bar.error::before { background-image: var(--px-err); animation: px-shake 0.6s steps(2, end) 2; }
+
+.status-bar .status-text {
+  font-size: 10px;
+  line-height: 1.9;
+  letter-spacing: 0.5px;
+}
+
+@keyframes px-shake {
+  0% { transform: translateX(-3px); }
+  50% { transform: translateX(3px); }
+}
+
+/* ---------- Toasts (annuler, messages) ---------- */
+.toast {
+  font-family: var(--px-font);
+  font-size: 10px;
+  line-height: 1.8;
+  border: none;
+  border-radius: 0;
+  background: var(--surface);
+  box-shadow:
+    0 -4px 0 0 var(--px-line), 0 4px 0 0 var(--px-line), -4px 0 0 0 var(--px-line), 4px 0 0 0 var(--px-line),
+    12px 12px 0 0 rgba(0, 0, 0, 0.55);
+}
+
+.toast.visible { animation: px-pop 0.25s steps(3, end); }
+
+.toast button {
+  font-family: var(--px-font);
+  font-size: 10px;
+  color: #facc15;
+}
+
+#msgToast { --px-line: var(--error); }
+
+#msgToast::before {
+  content: '';
+  width: 30px;
+  height: 27px;
+  flex-shrink: 0;
+  image-rendering: pixelated;
+  background: var(--px-err) center / 30px 27px no-repeat;
+}
+
+/* ---------- Petites boîtes de dialogue (confirmation, saisie) ---------- */
+.px-dialog {
+  border: none;
+  border-radius: 0;
+  box-shadow:
+    0 -4px 0 0 var(--px-line), 0 4px 0 0 var(--px-line), -4px 0 0 0 var(--px-line), 4px 0 0 0 var(--px-line),
+    12px 12px 0 0 rgba(0, 0, 0, 0.55);
+  animation: px-pop 0.25s steps(3, end);
+}
+
+.px-dialog .modal-header h2 {
+  font-family: var(--px-font);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--px-line);
+}
+
+.px-dialog .btn {
+  border-radius: 0;
+  font-family: var(--px-font);
+  font-size: 10px;
+}
+
+/* ---------- Confettis ---------- */
+.px-confetti {
+  position: fixed;
+  inset: 0;
+  z-index: 3500;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.px-confetti i {
+  position: absolute;
+  top: -20px;
+  animation-name: px-fall;
+  animation-timing-function: steps(10, end);
+  animation-fill-mode: forwards;
+}
+
+@keyframes px-fall {
+  to { transform: translateY(105vh) rotate(180deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .px-ghost, .px-dots::after, .status-bar.error::before { animation: none; }
+  .px-loader.visible, .status-bar.visible, .toast.visible, .px-dialog { animation: none; }
+  .progress-bar { transition: none; }
+}

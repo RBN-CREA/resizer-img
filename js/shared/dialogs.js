@@ -28,7 +28,7 @@ export function promptDialog(title, label, defaultValue = '', okLabel = 'Valider
     overlay.setAttribute('role', 'dialog');
     overlay.setAttribute('aria-modal', 'true');
     overlay.innerHTML = `
-      <div class="modal" style="max-width: 420px;">
+      <div class="modal px-dialog" style="max-width: 420px;">
         <div class="modal-header"><h2></h2></div>
         <form style="padding: 20px 24px; display: flex; flex-direction: column; gap: 8px;">
           <label style="font-size: 0.8125rem; color: var(--text-muted);"></label>
@@ -80,7 +80,7 @@ export function confirmDialog(title, message, okLabel = 'Confirmer') {
     overlay.setAttribute('role', 'dialog');
     overlay.setAttribute('aria-modal', 'true');
     overlay.innerHTML = `
-      <div class="modal" style="max-width: 420px;">
+      <div class="modal px-dialog" style="max-width: 420px;">
         <div class="modal-header"><h2></h2></div>
         <div style="padding: 20px 24px; font-size: 0.9rem; color: var(--text-muted);"></div>
         <div class="modal-footer">
