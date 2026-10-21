@@ -7,14 +7,14 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG" crossorigin="anonymous"></script>
   
   <!-- IA Détection de Visage -->
-  <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/dist/face-api.js" integrity="sha384-M5nePoB6/w/a9JhtegEibSLGiJy/+QMZZMfvcxjWVCQW/HPwrQ7i21V/Px/8AyVA" crossorigin="anonymous"></script>
   <!-- IA Détection de Sujet / Contraste -->
-  <script src="https://unpkg.com/smartcrop@2.0.5/smartcrop.js"></script>
+  <script src="https://unpkg.com/smartcrop@2.0.5/smartcrop.js" integrity="sha384-fmGdARkBhudeaINzLQk8ABdsdI3AK++OtxbPyiSEW7+QldWLexH87+KBnd6O+IET" crossorigin="anonymous"></script>
   <!-- Muxer MP4 pour structurer le fichier pour QuickTime/DaVinci/Mélangeurs Vidéo -->
-  <script src="https://unpkg.com/mp4-muxer/build/mp4-muxer.js"></script>
+  <script src="https://unpkg.com/mp4-muxer@5.2.2/build/mp4-muxer.js" integrity="sha384-wr0AQH9RBAKio/g7bHM5245MBCU5B/b0Y9u42cTxRYQQJXKEijZvWEJKL9JG26hs" crossorigin="anonymous"></script>
 
   <style>
     :root {
@@ -153,12 +153,6 @@
       background: var(--accent);
       color: white;
       box-shadow: 0 2px 12px var(--accent-glow);
-    }
-
-    .header-right {
-      display: flex;
-      align-items: center;
-      gap: 12px;
     }
 
     .badge {
@@ -349,36 +343,6 @@
       box-shadow: 0 4px 20px rgba(34, 197, 94, 0.3);
     }
 
-    .features {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 16px;
-      width: 100%;
-      max-width: 640px;
-    }
-
-    .feature {
-      padding: 16px;
-      background: var(--surface-2);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      text-align: center;
-    }
-
-    .feature-icon { font-size: 1.5rem; margin-bottom: 8px; }
-
-    .feature strong {
-      display: block;
-      font-size: 0.8125rem;
-      font-weight: 600;
-      margin-bottom: 4px;
-    }
-
-    .feature span {
-      font-size: 0.75rem;
-      color: var(--text-dim);
-    }
-
     /* Editor view (Images & Video) */
     .editor-view {
       display: none;
@@ -426,7 +390,6 @@
 
     @media (max-width: 900px) {
       .editor-layout { grid-template-columns: 1fr; }
-      .features { grid-template-columns: 1fr; }
     }
 
     /* Galerie & Sélection Multiple */
@@ -1302,10 +1265,6 @@
           Vidéos & Broadcast
         </button>
       </div>
-
-      <div class="header-right">
-        <span class="badge">100% local · Broadcast Ready</span>
-      </div>
     </header>
 
     <main class="card">
@@ -1332,24 +1291,6 @@
                   Ouvrir un dossier
                 </button>
               </div>
-            </div>
-          </div>
-
-          <div class="features">
-            <div class="feature">
-              <div class="feature-icon">⚡</div>
-              <strong>Présets rapides</strong>
-              <span>Horizontal, vertical, une de presse</span>
-            </div>
-            <div class="feature">
-              <div class="feature-icon">✨</div>
-              <strong>Éditeur avancé</strong>
-              <span>Zoom, ombre, flou de fond</span>
-            </div>
-            <div class="feature">
-              <div class="feature-icon">📦</div>
-              <strong>Export ZIP & MP4</strong>
-              <span>Images et Diaporamas Vidéo</span>
             </div>
           </div>
         </section>
@@ -1933,6 +1874,10 @@
 
   <!-- ================= GESTION GLOBALE DES ONGLETS ================= -->
   <script>
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
     document.querySelectorAll('.tab-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -2166,7 +2111,7 @@
           <div class="video-item-header">
             <div style="display:flex; align-items:center; gap:8px;">
                <input type="checkbox" class="video-export-cb" data-index="${index}" checked onclick="event.stopPropagation()">
-               <span class="video-item-name" title="${vid.file.name}">${vid.file.name}</span>
+               <span class="video-item-name" title="${escapeHtml(vid.file.name)}">${escapeHtml(vid.file.name)}</span>
             </div>
 
             <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px;">
@@ -2943,7 +2888,7 @@
     let isFaceApiLoaded = false;
     async function loadFaceAI() {
       try {
-        const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
+        const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model/';
         await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
         isFaceApiLoaded = true;
       } catch (err) {}
@@ -3362,13 +3307,13 @@
         // Liste pour l'export des Images
         const labelImg = document.createElement('label');
         labelImg.style.cssText = 'display: flex; align-items: center; gap: 6px; font-size: 0.8125rem; cursor: pointer; background: var(--surface); padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border);';
-        labelImg.innerHTML = `<input type="checkbox" value="${folder}" checked style="accent-color: var(--accent);"> ${folder}`;
+        labelImg.innerHTML = `<input type="checkbox" value="${escapeHtml(folder)}" checked style="accent-color: var(--accent);"> ${escapeHtml(folder)}`;
         imgFolderList.appendChild(labelImg);
         
         // Liste pour l'export Vidéo
         const labelVid = document.createElement('label');
         labelVid.style.cssText = 'display: flex; align-items: center; gap: 6px; font-size: 0.8125rem; cursor: pointer; background: var(--surface); padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border);';
-        labelVid.innerHTML = `<input type="checkbox" value="${folder}" checked style="accent-color: var(--accent);"> ${folder}`;
+        labelVid.innerHTML = `<input type="checkbox" value="${escapeHtml(folder)}" checked style="accent-color: var(--accent);"> ${escapeHtml(folder)}`;
         vidFolderList.appendChild(labelVid);
       });
 
@@ -4140,7 +4085,7 @@
           section.className = 'gallery-section';
           section.innerHTML = `
             <div class="gallery-section-title" title="Cliquer pour sélectionner toutes les photos du dossier">
-              📁 ${folderName} <span style="font-weight: normal; color: var(--text-dim);">(${grouped[folderName].length})</span>
+              📁 ${escapeHtml(folderName)} <span style="font-weight: normal; color: var(--text-dim);">(${grouped[folderName].length})</span>
             </div>
             <div class="gallery"></div>
           `;
@@ -4185,7 +4130,7 @@
       item.innerHTML = `
         <div class="gallery-item-preview"><canvas width="${dims.w}" height="${dims.h}"></canvas></div>
         <div class="gallery-item-label">
-          <div class="file-name" title="${file.name}">${file.name}</div>
+          <div class="file-name" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</div>
           <div class="preset-tag">${presetLabels[preset] || preset}</div>
         </div>
         <button class="edit-overlay-btn" title="Éditer l'image">
@@ -4548,7 +4493,7 @@
           canvas.toBlob(blob => {
              resolve(blob);
              URL.revokeObjectURL(img.src);
-          }, 'image/' + format, format === 'jpg' ? 0.95 : 1);
+          }, format === 'jpg' ? 'image/jpeg' : 'image/' + format, format === 'jpg' ? 0.95 : 1);
         };
         img.onerror = () => { URL.revokeObjectURL(img.src); reject(); };
         img.src = URL.createObjectURL(file);
