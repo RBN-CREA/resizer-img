@@ -313,7 +313,7 @@ export async function runVideoExportMultiple(isFastExport) {
     if (exported.length) {
         reportExport({
             type: failures.length ? 'error' : 'success',
-            lines: [`${exported.length} vidéo(s) MP4 H.264 / AAC — ${sizeText}`, `Fichier : ${outputName}`],
+            files: [{ name: outputName, detail: `${exported.length} vidéo(s) MP4 H.264 / AAC · ${sizeText}` }],
             errors: failures.map(f => `Échec : ${f}`)
         });
     } else if (failures.length) {

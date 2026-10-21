@@ -1,5 +1,5 @@
 import { APP } from './config.js';
-import { pixelConfetti } from './pixel.js';
+import { confettiBurst } from './confetti.js';
 
 // Message non bloquant (remplace alert())
 export let notifyTimer = null;
@@ -29,7 +29,7 @@ export function promptDialog(title, label, defaultValue = '', okLabel = 'Valider
     overlay.setAttribute('role', 'dialog');
     overlay.setAttribute('aria-modal', 'true');
     overlay.innerHTML = `
-      <div class="modal px-dialog" style="max-width: 420px;">
+      <div class="modal" style="max-width: 420px;">
         <div class="modal-header"><h2></h2></div>
         <form style="padding: 20px 24px; display: flex; flex-direction: column; gap: 8px;">
           <label style="font-size: 0.8125rem; color: var(--text-muted);"></label>
@@ -81,7 +81,7 @@ export function confirmDialog(title, message, okLabel = 'Confirmer') {
     overlay.setAttribute('role', 'dialog');
     overlay.setAttribute('aria-modal', 'true');
     overlay.innerHTML = `
-      <div class="modal px-dialog" style="max-width: 420px;">
+      <div class="modal" style="max-width: 420px;">
         <div class="modal-header"><h2></h2></div>
         <div style="padding: 20px 24px; font-size: 0.9rem; color: var(--text-muted);"></div>
         <div class="modal-footer">
@@ -135,44 +135,57 @@ export function endExportReport() {
   if (entries && entries.length) showExportResult(entries);
 }
 
-// Icônes animées du style classique (le style pixel utilise les sprites de pixel.js)
+// Icônes animées (le tracé se dessine à l'ouverture de la fenêtre)
 const RESULT_ICONS = {
-  success: '<svg class="cl-result-icon" viewBox="0 0 52 52" aria-hidden="true"><circle class="cl-ring" pathLength="1" cx="26" cy="26" r="24"/><path class="cl-mark" pathLength="1" d="M14 27l8 8 16-17"/></svg>',
-  error: '<svg class="cl-result-icon" viewBox="0 0 52 52" aria-hidden="true"><circle class="cl-ring" pathLength="1" cx="26" cy="26" r="24"/><path class="cl-mark" pathLength="1" d="M18 18l16 16M34 18L18 34"/></svg>',
-  warning: '<svg class="cl-result-icon" viewBox="0 0 52 52" aria-hidden="true"><path class="cl-ring" pathLength="1" d="M26 5L49 45H3Z"/><path class="cl-mark" pathLength="1" d="M26 20v13M26 38.5v.5"/></svg>'
+  success: '<svg class="ui-result-icon" viewBox="0 0 52 52" aria-hidden="true"><circle class="ui-ring" pathLength="1" cx="26" cy="26" r="24"/><path class="ui-mark" pathLength="1" d="M14 27l8 8 16-17"/></svg>',
+  error: '<svg class="ui-result-icon" viewBox="0 0 52 52" aria-hidden="true"><circle class="ui-ring" pathLength="1" cx="26" cy="26" r="24"/><path class="ui-mark" pathLength="1" d="M18 18l16 16M34 18L18 34"/></svg>',
+  warning: '<svg class="ui-result-icon" viewBox="0 0 52 52" aria-hidden="true"><path class="ui-ring" pathLength="1" d="M26 5L49 45H3Z"/><path class="ui-mark" pathLength="1" d="M26 20v13M26 38.5v.5"/></svg>'
 };
 
-// entry : { type: 'success' | 'error', lines: string[], errors?: string[] }
+// entry : { type: 'success' | 'error', files?: [{ name, detail }], lines?: string[], errors?: string[] }
+//   files : un fichier créé = une seule tuile (nom + contenu et poids)
+//   lines : message simple (une tuile de texte)
 function showExportResult(entries) {
   const okCount = entries.filter(e => e.type === 'success').length;
   const type = okCount === entries.length ? 'success' : (okCount === 0 ? 'error' : 'warning');
   const title = { success: 'Export terminé !', warning: 'Export terminé avec des erreurs', error: 'Export échoué' }[type];
+  const files = entries.flatMap(e => e.files || []);
   const lines = entries.flatMap(e => e.lines || []);
   const errors = entries.flatMap(e => e.errors || []);
 
   const previous = document.activeElement;
   const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay open px-result';
+  overlay.className = 'modal-overlay open ui-result';
   overlay.setAttribute('role', 'alertdialog');
   overlay.setAttribute('aria-modal', 'true');
   overlay.setAttribute('aria-labelledby', 'exportResultTitle');
   overlay.innerHTML = `
-    <div class="modal px-dialog px-result-box" data-type="${type}">
-      <div class="px-result-icon" aria-hidden="true"></div>
+    <div class="modal ui-result-box" data-type="${type}">
       ${RESULT_ICONS[type]}
-      <h2 class="px-result-title" id="exportResultTitle"></h2>
-      <ul class="px-result-lines"></ul>
-      <ul class="px-result-errors"></ul>
-      <button type="button" class="px-btn" data-act="ok">OK</button>
+      <h2 class="ui-result-title" id="exportResultTitle"></h2>
+      <ul class="ui-result-lines"></ul>
+      <ul class="ui-result-errors"></ul>
+      <button type="button" class="ui-btn" data-act="ok">OK</button>
     </div>`;
-  overlay.querySelector('.px-result-title').textContent = title;
-  const fill = (sel, items) => {
-    const ul = overlay.querySelector(sel);
-    items.forEach(t => { const li = document.createElement('li'); li.textContent = t; ul.appendChild(li); });
-    if (!items.length) ul.remove();
-  };
-  fill('.px-result-lines', lines);
-  fill('.px-result-errors', errors);
+  overlay.querySelector('.ui-result-title').textContent = title;
+
+  const linesUl = overlay.querySelector('.ui-result-lines');
+  files.forEach(({ name, detail }) => {
+    const li = document.createElement('li');
+    li.className = 'ui-result-file';
+    const strong = document.createElement('strong');
+    strong.textContent = name;
+    const meta = document.createElement('span');
+    meta.textContent = detail;
+    li.append(strong, meta);
+    linesUl.appendChild(li);
+  });
+  lines.forEach(t => { const li = document.createElement('li'); li.textContent = t; linesUl.appendChild(li); });
+  if (!linesUl.children.length) linesUl.remove();
+
+  const errorsUl = overlay.querySelector('.ui-result-errors');
+  errors.forEach(t => { const li = document.createElement('li'); li.textContent = t; errorsUl.appendChild(li); });
+  if (!errors.length) errorsUl.remove();
 
   const close = () => {
     document.removeEventListener('keydown', onKey, true);
@@ -186,5 +199,5 @@ function showExportResult(entries) {
   overlay.addEventListener('click', (e) => { if (e.target === overlay || e.target.closest('[data-act="ok"]')) close(); });
   document.body.appendChild(overlay);
   overlay.querySelector('[data-act="ok"]').focus();
-  if (type !== 'error') pixelConfetti(overlay.querySelector('.px-result-box'));
+  if (type !== 'error') confettiBurst(overlay.querySelector('.ui-result-box'));
 }

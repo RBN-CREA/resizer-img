@@ -285,7 +285,7 @@ export async function generateVideoWebCodecsInner(targetFolders, durationInSecon
     setTimeout(() => URL.revokeObjectURL(url), 100);
     const count = Object.keys(zip.files).length;
     showStatus(`${count} diaporama(s) MP4 exporté(s) ! (${formatBytes(blob.size)})`, 'success');
-    reportExport({ type: 'success', lines: [`${count} diaporama(s) MP4 H.264 — ${formatBytes(blob.size)}`, 'Fichier : diaporamas_video_H264.zip'] });
+    reportExport({ type: 'success', files: [{ name: 'diaporamas_video_H264.zip', detail: `${count} diaporama(s) MP4 H.264 · ${formatBytes(blob.size)}` }] });
   } catch (e) {
     showStatus('Erreur lors de la création du ZIP vidéo.', 'error');
     reportExport({ type: 'error', lines: ['Le ZIP des diaporamas n\'a pas pu être créé.'] });

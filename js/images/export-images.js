@@ -74,7 +74,7 @@ export async function processImagesCustom(format, structure, targetFolders, { qu
       : `${countExported} image(s) exportée(s) avec succès ! (${formatBytes(blob.size)})`, failed.length ? 'error' : 'success');
     reportExport({
       type: failed.length ? 'error' : 'success',
-      lines: [`${countExported} image(s) en ${format === 'jpg' ? 'JPEG' : format.toUpperCase()} — ${formatBytes(blob.size)}`, 'Fichier : images_redimensionnees.zip'],
+      files: [{ name: 'images_redimensionnees.zip', detail: `${countExported} image(s) en ${format === 'jpg' ? 'JPEG' : format.toUpperCase()} · ${formatBytes(blob.size)}` }],
       errors: failed.map(n => `Échec : ${n}`)
     });
   } catch (e) {

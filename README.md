@@ -43,11 +43,11 @@ Le code est en modules ES (`<script type="module">`) : il doit être servi en HT
 
 ```
 index.html              page et structure
-css/                    fonts, base, components, layout, gallery, sidebar, status, modals, video, feedback, notify (chargement, messages, notification d'export, style classique), pixel (le même habillage en pixel art), pixel-theme (interface complète en pixel art, optionnelle), responsive
+css/                    fonts, base, components, layout, gallery, sidebar, status, modals, video, feedback, notify (chargement, messages, notification d'export), responsive
 serve.py                serveur local de développement (sans cache)
 vendor/                 bibliothèques tierces, modèle de détection de visages, police Inter
 js/main.js              point d'entrée
-js/shared/              réglages (APP), échappement HTML, boîtes de dialogue, sprites pixel art, utilitaires d'encodage vidéo
+js/shared/              réglages (APP), échappement HTML, boîtes de dialogue, confettis, utilitaires d'encodage vidéo
 js/images/              onglet Images
   state.js              liste des images (un objet par image), sélection, état partagé
   undo.js               annulation (Ctrl/Cmd+Z)
@@ -62,7 +62,7 @@ js/images/              onglet Images
   export-slideshow.js   diaporama MP4
   gallery-shortcuts.js  raccourcis clavier de la galerie
 js/video/               onglet Vidéos : import, analyse, liste, aperçu, réglages, export
-js/ui/                  onglets, thème (pixel / classique), accessibilité, écran de chargement pixel art, détection WebCodecs, préférences
+js/ui/                  onglets, accessibilité, fenêtre de chargement, détection WebCodecs, préférences
 ```
 
 Bibliothèques (JSZip, face-api et son modèle, smartcrop, mp4-muxer) et police Inter hébergées dans `vendor/` : l'application ne fait aucune requête vers un service externe (ni CDN, ni Google Fonts). Détails et licences dans `vendor/README.md`.
