@@ -1878,6 +1878,53 @@
       return String(str).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     }
 
+    // Attend un événement du <video>, ou échoue sur erreur / délai dépassé
+    function waitForVideoEvent(video, okEvent, timeoutMs = 15000) {
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => done(new Error('Délai dépassé (' + okEvent + ')')), timeoutMs);
+        function done(err) {
+          clearTimeout(timer);
+          video.removeEventListener(okEvent, onOk);
+          video.removeEventListener('error', onErr);
+          err ? reject(err) : resolve();
+        }
+        const onOk = () => done();
+        const onErr = () => done(new Error('Fichier vidéo illisible ou format non supporté'));
+        video.addEventListener(okEvent, onOk);
+        video.addEventListener('error', onErr);
+      });
+    }
+
+    function loadVideoMetadata(video) {
+      if (video.readyState >= 1) return Promise.resolve();
+      return waitForVideoEvent(video, 'loadedmetadata');
+    }
+
+    function seekVideo(video, time) {
+      const p = waitForVideoEvent(video, 'seeked');
+      video.currentTime = time;
+      return p;
+    }
+
+    // Choisit une config H.264 réellement supportée (niveau selon la résolution, repli logiciel)
+    async function getSupportedVideoEncoderConfig(width, height, fps, bitrate) {
+      if (!('VideoEncoder' in window)) throw new Error("WebCodecs n'est pas supporté par ce navigateur");
+      const w = width & ~1, h = height & ~1; // H.264 exige des dimensions paires
+      const mbs = Math.ceil(w / 16) * Math.ceil(h / 16);
+      const level = mbs <= 8192 ? '28' : (mbs <= 22080 ? '32' : '33'); // 4.0 / 5.0 / 5.1
+      const codecs = ['avc1.6400' + level, 'avc1.4D00' + level, 'avc1.4200' + level];
+      for (const hardwareAcceleration of ['prefer-hardware', 'no-preference']) {
+        for (const codec of codecs) {
+          const config = { codec, width: w, height: h, bitrate, framerate: fps, hardwareAcceleration };
+          try {
+            const res = await VideoEncoder.isConfigSupported(config);
+            if (res.supported) return res.config;
+          } catch (e) {}
+        }
+      }
+      throw new Error(`Aucun encodeur H.264 disponible pour ${w}×${h}`);
+    }
+
     document.querySelectorAll('.tab-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -1949,8 +1996,9 @@
       const startTime = Date.now();
       const totalFiles = files.length;
 
+      const failed = [];
       for (let i = 0; i < files.length; i++) {
-        await analyzeVideoFile(files[i], (filePercent) => {
+        const ok = await analyzeVideoFile(files[i], (filePercent) => {
             const overallPercent = (i + filePercent) / totalFiles;
             const elapsed = (Date.now() - startTime) / 1000;
             const speed = overallPercent > 0 ? elapsed / overallPercent : 0;
@@ -1959,10 +2007,19 @@
             progressBar.style.width = `${overallPercent * 100}%`;
             showVideoStatus(`Analyse ${i+1}/${totalFiles} (${Math.round(overallPercent * 100)}%) - Temps restant : ${formatEta(remaining)}`, "success");
         });
+        if (!ok) failed.push(files[i].name);
       }
 
       progressWrap.classList.remove('visible');
       hideVideoStatus();
+      if (analyzedVideos.length === 0) {
+        document.getElementById('videoEditorView').style.display = 'none';
+        document.getElementById('videoUploadView').classList.remove('hidden');
+        if (failed.length) alert(`Impossible d'analyser : ${failed.join(', ')}`);
+      } else if (failed.length) {
+        showVideoStatus(`Impossible d'analyser : ${failed.join(', ')}`, "error");
+        setTimeout(hideVideoStatus, 8000);
+      }
 
       updateVideoListUI();
       if (activeVideoIndex === -1 && analyzedVideos.length > 0) {
@@ -1985,8 +2042,17 @@
         video.muted = true;
         video.playsInline = true;
 
-        video.onloadedmetadata = async () => {
+        const fail = (e) => {
+          console.error('Analyse impossible :', file.name, e);
+          URL.revokeObjectURL(video.src);
+          resolve(false);
+        };
+        video.addEventListener('error', () => fail(video.error), { once: true });
+
+        loadVideoMetadata(video).then(async () => {
+          try {
           const duration = video.duration;
+          if (!isFinite(duration) || duration <= 0) throw new Error('Durée invalide');
           const canvas = document.createElement('canvas');
           canvas.width = 320;
           canvas.height = 180;
@@ -2002,8 +2068,7 @@
           let currentStep = 0;
 
           for (let t = 0; t < duration; t += step) {
-            video.currentTime = t;
-            await new Promise(r => { video.onseeked = () => r(); });
+            await seekVideo(video, t);
 
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -2089,8 +2154,9 @@
             status: anomalies.length > 0 ? 'error' : 'ok'
           });
 
-          resolve();
-        };
+          resolve(true);
+          } catch (e) { fail(e); }
+        }).catch(fail);
       });
     }
 
@@ -2546,7 +2612,12 @@
     });
 
     async function exportSingleVideo(vidData, isFastExport, onProgressCallback) {
-        return new Promise(async (resolve) => {
+        let videoEncoder = null;
+        let audioEncoder = null;
+        let encoderError = null;
+        const videoElem = document.createElement('video');
+
+        try {
             // --- 1. DÉTECTION ET EXTRACTION DU SON ---
             let audioBuffer = null;
             // Ne tente d'extraire le son QUE si la vidéo n'a pas été "mutée" manuellement
@@ -2556,20 +2627,35 @@
                     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                     // Décode l'audio du fichier original
                     audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+                    audioCtx.close();
                 } catch (e) {
                     console.warn("Aucun son détecté ou format non supporté", e);
                 }
             }
-            // Le flag final "hasAudio" prend maintenant en compte le choix de l'utilisateur
-            const hasAudio = !vidData.isMuted && audioBuffer && audioBuffer.numberOfChannels > 0;
+
+            let audioConfig = null;
+            if (!vidData.isMuted && audioBuffer && audioBuffer.numberOfChannels > 0 && 'AudioEncoder' in window) {
+                const candidate = {
+                    codec: 'mp4a.40.2', // AAC-LC
+                    sampleRate: audioBuffer.sampleRate,
+                    numberOfChannels: audioBuffer.numberOfChannels,
+                    bitrate: 128_000
+                };
+                try {
+                    const res = await AudioEncoder.isConfigSupported(candidate);
+                    if (res.supported) audioConfig = candidate;
+                    else console.warn("Encodage AAC non supporté : export sans son");
+                } catch (e) {
+                    console.warn("Encodage AAC non supporté : export sans son", e);
+                }
+            }
+            const hasAudio = !!audioConfig;
 
             // Préparation du lecteur Vidéo
-            const videoElem = document.createElement('video');
             videoElem.src = vidData.url;
             videoElem.muted = true;
             videoElem.playsInline = true;
-
-            await new Promise(r => videoElem.onloadedmetadata = r);
+            await loadVideoMetadata(videoElem);
 
             let targetW = 1920, targetH = 1080;
             if (vidData.preset === '1080x1920') { targetW = 1080; targetH = 1920; }
@@ -2579,58 +2665,51 @@
             }
 
             const fps = 25;
+
+            // --- 2. CONFIGURATION SUPPORTÉE PAR LE NAVIGATEUR ---
+            const videoConfig = await getSupportedVideoEncoderConfig(targetW, targetH, fps, 50_000_000);
+            targetW = videoConfig.width;
+            targetH = videoConfig.height;
+
             const canvas = document.createElement('canvas');
             canvas.width = targetW; canvas.height = targetH;
             const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
-            // --- 2. CONFIGURATION DU MUXER (Avec piste audio) ---
+            // --- 3. MUXER (avec piste audio si besoin) ---
             let muxerConfig = {
                 target: new Mp4Muxer.ArrayBufferTarget(),
                 video: { codec: 'avc', width: targetW, height: targetH },
                 fastStart: 'in-memory'
             };
-
-            // On déclare la piste audio au muxer si la vidéo a du son
             if (hasAudio) {
                 muxerConfig.audio = {
                     codec: 'aac',
-                    sampleRate: audioBuffer.sampleRate,
-                    numberOfChannels: audioBuffer.numberOfChannels
+                    sampleRate: audioConfig.sampleRate,
+                    numberOfChannels: audioConfig.numberOfChannels
                 };
             }
-
             let muxer = new Mp4Muxer.Muxer(muxerConfig);
 
-            // --- 3. CONFIGURATION DES ENCODEURS (Vidéo + Audio) ---
-            let videoEncoder = new VideoEncoder({
+            // --- 4. ENCODEURS ---
+            videoEncoder = new VideoEncoder({
                 output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
-                error: e => console.error(e)
+                error: e => { encoderError = e; console.error("Erreur VideoEncoder:", e); }
             });
+            videoEncoder.configure(videoConfig);
 
-            videoEncoder.configure({
-                codec: 'avc1.640028', width: targetW, height: targetH,
-                bitrate: 50_000_000, framerate: fps,
-                hardwareAcceleration: 'prefer-hardware'
-            });
-
-            let audioEncoder = null;
             if (hasAudio) {
                 audioEncoder = new AudioEncoder({
                     output: (chunk, meta) => muxer.addAudioChunk(chunk, meta),
-                    error: e => console.error("Erreur AudioEncoder:", e)
+                    error: e => { encoderError = e; console.error("Erreur AudioEncoder:", e); }
                 });
-                audioEncoder.configure({
-                    codec: 'mp4a.40.2', // Format AAC-LC standard
-                    sampleRate: audioBuffer.sampleRate,
-                    numberOfChannels: audioBuffer.numberOfChannels,
-                    bitrate: 128_000 // Qualité Broadcast basique (128 kbps)
-                });
+                audioEncoder.configure(audioConfig);
             }
 
             const totalFrames = Math.round(vidData.duration * fps);
             let exportFrameCounter = 0;
 
             for (let f = 0; f < totalFrames; f++) {
+                if (encoderError) throw encoderError;
                 const currentTime = f / fps;
 
                 let inBlackSegment = false;
@@ -2644,8 +2723,7 @@
                     continue;
                 }
 
-                videoElem.currentTime = currentTime;
-                await new Promise(r => videoElem.onseeked = r);
+                await seekVideo(videoElem, currentTime);
 
                 drawVideoFrame(ctx, videoElem, vidData, targetW, targetH);
 
@@ -2660,7 +2738,7 @@
                         let isKept = vidData.blackSegments && vidData.blackSegments.some(seg => seg.keep && currentTime >= seg.start && currentTime <= seg.end);
                         if (!isKept) {
                             if (f % 5 === 0 && onProgressCallback) onProgressCallback(f);
-                            continue; 
+                            continue;
                         }
                     }
                 }
@@ -2668,16 +2746,21 @@
                 // Calcul du Timestamp commun à la vidéo ET à l'audio
                 const timestamp = (exportFrameCounter / fps) * 1_000_000;
                 const duration = (1 / fps) * 1_000_000;
-                
+
                 // Traitement et Encodage Vidéo
                 const bitmap = await createImageBitmap(canvas);
                 const frame = new VideoFrame(bitmap, { timestamp, duration });
-                
+
                 videoEncoder.encode(frame, { keyFrame: exportFrameCounter % fps === 0 });
                 frame.close();
                 bitmap.close();
 
-                // --- 4. EXTRACTION ET ENCODAGE DU CHUNK AUDIO SYNCHRONISÉ ---
+                // Évite d'accumuler trop de frames en attente dans l'encodeur
+                while (videoEncoder.encodeQueueSize > 20 && !encoderError) {
+                    await new Promise(r => setTimeout(r, 5));
+                }
+
+                // --- 5. EXTRACTION ET ENCODAGE DU CHUNK AUDIO SYNCHRONISÉ ---
                 if (hasAudio) {
                     const startSample = Math.floor(currentTime * audioBuffer.sampleRate);
                     const endSample = Math.floor((currentTime + 1/fps) * audioBuffer.sampleRate);
@@ -2707,28 +2790,32 @@
                     }
                 }
 
-                exportFrameCounter++; 
+                exportFrameCounter++;
                 if (f % 5 === 0 && onProgressCallback) onProgressCallback(f);
             }
 
-            // --- 5. CLÔTURE ET EXPORT ---
+            if (exportFrameCounter === 0) throw new Error("Aucune image à exporter (tout a été coupé)");
+
+            // --- 6. CLÔTURE ET EXPORT ---
             await videoEncoder.flush();
-            if (hasAudio) {
-                await audioEncoder.flush();
-            }
+            if (hasAudio) await audioEncoder.flush();
+            if (encoderError) throw encoderError;
             muxer.finalize();
 
             const blob = new Blob([muxer.target.buffer], { type: 'video/mp4' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            
+
             a.download = `${vidData.file.name.replace(/\.[^/.]+$/, '')}.mp4`;
             a.click();
             setTimeout(() => URL.revokeObjectURL(url), 100);
-            
-            resolve();
-        });
+        } finally {
+            if (videoEncoder && videoEncoder.state !== 'closed') { try { videoEncoder.close(); } catch (e) {} }
+            if (audioEncoder && audioEncoder.state !== 'closed') { try { audioEncoder.close(); } catch (e) {} }
+            videoElem.removeAttribute('src');
+            videoElem.load();
+        }
     }
 
     async function runVideoExportMultiple(isFastExport) {
@@ -2758,27 +2845,38 @@
 
         let globalFramesProcessed = 0;
         const startTime = Date.now();
+        const failures = [];
 
         for (let i = 0; i < selectedIndices.length; i++) {
             const vidData = analyzedVideos[selectedIndices[i]];
             
-            await exportSingleVideo(vidData, isFastExport, (framesDoneInVid) => {
-                const totalDone = globalFramesProcessed + framesDoneInVid;
-                const percent = totalDone / totalFramesAll;
-                const elapsed = (Date.now() - startTime) / 1000;
-                const estimatedTotal = percent > 0 ? elapsed / percent : 0;
-                const remaining = estimatedTotal - elapsed;
-                
-                progressBar.style.width = `${percent * 100}%`;
-                showVideoStatus(`Export ${i+1}/${selectedIndices.length} - ${modeText} (${Math.round(percent * 100)}%) - Temps restant : ${formatEta(remaining)}`, "success");
-            });
-            
+            try {
+                await exportSingleVideo(vidData, isFastExport, (framesDoneInVid) => {
+                    const totalDone = globalFramesProcessed + framesDoneInVid;
+                    const percent = totalDone / totalFramesAll;
+                    const elapsed = (Date.now() - startTime) / 1000;
+                    const estimatedTotal = percent > 0 ? elapsed / percent : 0;
+                    const remaining = estimatedTotal - elapsed;
+
+                    progressBar.style.width = `${percent * 100}%`;
+                    showVideoStatus(`Export ${i+1}/${selectedIndices.length} - ${modeText} (${Math.round(percent * 100)}%) - Temps restant : ${formatEta(remaining)}`, "success");
+                });
+            } catch (e) {
+                console.error("Export échoué :", vidData.file.name, e);
+                failures.push(`${vidData.file.name} (${e && e.message ? e.message : 'erreur inconnue'})`);
+            }
+
             globalFramesProcessed += Math.round(vidData.duration * 25);
         }
 
         progressWrap.classList.remove('visible');
-        showVideoStatus(`Export Broadcast Multiple terminé avec succès !`, "success");
-        setTimeout(hideVideoStatus, 4000);
+        if (failures.length) {
+            showVideoStatus(`Export terminé avec ${failures.length} échec(s) : ${failures.join(' ; ')}`, "error");
+            setTimeout(hideVideoStatus, 12000);
+        } else {
+            showVideoStatus(`Export Broadcast Multiple terminé avec succès !`, "success");
+            setTimeout(hideVideoStatus, 4000);
+        }
     }
 
     document.getElementById('exportFastVideoBtn').addEventListener('click', () => runVideoExportMultiple(true));
@@ -2823,19 +2921,55 @@
     folderInput.style.display = 'none';
     document.body.appendChild(folderInput);
 
-    let selectedFiles = [];
-    let fileFolders = [];
-    let cropData = [];
-    let imagePresets = [];
-    let imageShadowSettings = [];
-    let imageBlurSettings = [];
-    let imageBgColorSettings = [];
-    let imageCustomized = [];
-    
-    let activeSelection = new Set();
-    let lastSelectedIndex = -1;
+    // État unique des images : un objet par image, identifié par un id stable.
+    // { id, file, folder, preset, crop, shadow, blur, bgColor, customized }
+    let items = [];
+    const itemsById = new Map();
+    let nextItemId = 1;
 
-    let editingIndex = -1;
+    const defaultShadow = () => ({ enabled: false, opacity: 0.3, direction: 180, distance: 4 });
+    const defaultCrop = (preset) => ({ zoom: preset === 'blur' ? 0.85 : 1, offsetX: 0, offsetY: 0, rawOffsetX: 0, rawOffsetY: 0, method: 'center' });
+    const defaultBlur = (preset) => preset === 'blur'
+      ? { enabled: true, intensity: 20, bgZoom: 1.3 }
+      : { enabled: false, intensity: 10, bgZoom: 1.3 };
+    const defaultBgColor = (preset) => ({ enabled: preset === 'une', color: '#ffffff' });
+
+    function getItem(id) { return itemsById.get(id); }
+
+    function addItem(file, folder, preset) {
+      const item = {
+        id: nextItemId++,
+        file,
+        folder: folder || 'Divers',
+        preset,
+        crop: defaultCrop(preset),
+        shadow: defaultShadow(),
+        blur: defaultBlur(preset),
+        bgColor: defaultBgColor(preset),
+        customized: false
+      };
+      items.push(item);
+      itemsById.set(item.id, item);
+      return item;
+    }
+
+    function removeItems(ids) {
+      items = items.filter(it => !ids.has(it.id));
+      ids.forEach(id => itemsById.delete(id));
+    }
+
+    function clearItems() {
+      items = [];
+      itemsById.clear();
+    }
+
+    // Sélection : ensemble d'ids (insensible aux suppressions / tris)
+    let activeSelection = new Set();
+    let lastSelectedId = null;
+    let displayOrder = []; // ids dans l'ordre d'affichage (pour Maj+clic)
+
+    let editingId = null;
+    const editingItem = () => (editingId === null ? undefined : getItem(editingId));
     let currentImage = null;
     let zoomLevel = 1;
     
@@ -2995,15 +3129,15 @@
 
       const boxRect = selectionBox.getBoundingClientRect();
       document.querySelectorAll('.gallery-item').forEach((item) => {
-          const index = parseInt(item.dataset.index);
+          const id = parseInt(item.dataset.id);
           const itemRect = item.getBoundingClientRect();
           const intersect = !(itemRect.right < boxRect.left || 
                               itemRect.left > boxRect.right || 
                               itemRect.bottom < boxRect.top || 
                               itemRect.top > boxRect.bottom);
           
-          if (intersect) activeSelection.add(index);
-          else if (!e.shiftKey && !e.ctrlKey && !e.metaKey) activeSelection.delete(index);
+          if (intersect) activeSelection.add(id);
+          else if (!e.shiftKey && !e.ctrlKey && !e.metaKey) activeSelection.delete(id);
       });
       updateGallerySelectionUI();
     });
@@ -3027,7 +3161,7 @@
       if (!item) return;
       e.preventDefault();
       
-      const idx = parseInt(item.dataset.index);
+      const idx = parseInt(item.dataset.id);
       if (!activeSelection.has(idx)) {
         if (!e.shiftKey && !e.ctrlKey && !e.metaKey) activeSelection.clear();
         activeSelection.add(idx);
@@ -3049,7 +3183,8 @@
       if (!groupName || !groupName.trim()) return;
 
       activeSelection.forEach(idx => {
-        fileFolders[idx] = groupName.trim();
+        const it = getItem(idx);
+        if (it) it.folder = groupName.trim();
       });
       activeSelection.clear();
       updateGallery();
@@ -3058,7 +3193,7 @@
     function updateGallerySelectionUI() {
       const items = document.querySelectorAll('.gallery-item');
       items.forEach((item) => {
-          const idx = parseInt(item.dataset.index);
+          const idx = parseInt(item.dataset.id);
           if (activeSelection.has(idx)) item.classList.add('selected');
           else item.classList.remove('selected');
       });
@@ -3153,7 +3288,7 @@
       document.getElementById('customRatio').value = selectValue;
       document.getElementById('modalCustomRatio').value = selectValue;
       
-      if(editorModal.classList.contains('open') && imagePresets[editingIndex] === 'custom') {
+      if(editorModal.classList.contains('open') && editingItem() && editingItem().preset === 'custom') {
          drawCanvasPreview();
       }
     }
@@ -3256,21 +3391,10 @@
     document.getElementById('newUploadBtn').addEventListener('click', () => fileInput.click());
     
     document.getElementById('clearBtn').addEventListener('click', () => {
-      if (activeSelection.size > 0 && activeSelection.size < selectedFiles.length) {
-          const indices = Array.from(activeSelection).sort((a,b) => b-a);
-          indices.forEach(idx => {
-              selectedFiles.splice(idx, 1);
-              fileFolders.splice(idx, 1);
-              cropData.splice(idx, 1);
-              imagePresets.splice(idx, 1);
-              imageShadowSettings.splice(idx, 1);
-              imageBlurSettings.splice(idx, 1);
-              imageBgColorSettings.splice(idx, 1);
-              imageCustomized.splice(idx, 1);
-          });
+      if (activeSelection.size > 0 && activeSelection.size < items.length) {
+          removeItems(activeSelection);
           activeSelection.clear();
-          lastSelectedIndex = -1;
-          document.getElementById('fileCountNum').textContent = selectedFiles.length;
+          lastSelectedId = null;
           updateGallery();
       } else {
           resetAll();
@@ -3293,9 +3417,9 @@
     let isKenBurnsEnabled = false;
 
     document.getElementById('openUnifiedExportBtn').addEventListener('click', () => {
-      if (selectedFiles.length === 0) return;
+      if (items.length === 0) return;
       
-      const folders = [...new Set(fileFolders)];
+      const folders = [...new Set(items.map(it => it.folder))];
       
       const imgFolderList = document.getElementById('imageFolderSelectionList');
       const vidFolderList = document.getElementById('videoFolderSelectionList');
@@ -3392,6 +3516,22 @@
 
     // --- ENCODEUR MATÉRIEL (WEBCODECS) POUR LES IMAGES ---
     async function generateVideoWebCodecs(targetFolders, durationInSeconds, transitionType, kenBurnsPercent) {
+      const state = { encoder: null };
+      const progressBar = document.getElementById('progressBar');
+      const originalProgressBg = progressBar.style.background;
+      try {
+        await generateVideoWebCodecsInner(targetFolders, durationInSeconds, transitionType, kenBurnsPercent, state);
+      } catch (e) {
+        console.error("Export diaporama échoué :", e);
+        showStatus(`Échec de l'export vidéo : ${e && e.message ? e.message : 'erreur inconnue'}`, 'error');
+        document.getElementById('progressWrap').classList.remove('visible');
+        progressBar.style.background = originalProgressBg;
+      } finally {
+        if (state.encoder && state.encoder.state !== 'closed') { try { state.encoder.close(); } catch (e) {} }
+      }
+    }
+
+    async function generateVideoWebCodecsInner(targetFolders, durationInSeconds, transitionType, kenBurnsPercent, state) {
       document.getElementById('progressWrap').classList.add('visible');
       const progressBar = document.getElementById('progressBar');
       const originalProgressBg = progressBar.style.background;
@@ -3406,18 +3546,17 @@
       const kenBurnsIntensity = kenBurnsPercent / 100;
 
       let groups = {};
-      selectedFiles.forEach((file, index) => {
-        const folder = fileFolders[index] || 'Divers';
-        if (targetFolders.includes(folder)) {
-          if (!groups[folder]) groups[folder] = [];
-          groups[folder].push(index);
+      items.forEach((it) => {
+        if (targetFolders.includes(it.folder)) {
+          if (!groups[it.folder]) groups[it.folder] = [];
+          groups[it.folder].push(it.id);
         }
       });
 
       // Tri alphabétique (naturel) des fichiers pour chaque dossier
       for (let folderName in groups) {
         groups[folderName].sort((a, b) => {
-          return selectedFiles[a].name.localeCompare(selectedFiles[b].name, undefined, {numeric: true});
+          return getItem(a).file.name.localeCompare(getItem(b).file.name, undefined, {numeric: true});
         });
       }
 
@@ -3433,17 +3572,23 @@
 
         let groupImages = [];
         for (let idx of indices) {
-          const file = selectedFiles[idx];
-          const img = await new Promise((resolve) => {
+          const file = getItem(idx).file;
+          const img = await new Promise((resolve, reject) => {
             const im = new Image();
-            im.onload = () => resolve(im);
+            im.onload = () => { URL.revokeObjectURL(im.src); resolve(im); };
+            im.onerror = () => { URL.revokeObjectURL(im.src); reject(new Error(`Image illisible : ${file.name}`)); };
             im.src = URL.createObjectURL(file);
           });
           groupImages.push({ img, index: idx });
         }
 
-        const firstPreset = imagePresets[indices[0]] || '1920x1080';
-        const dims = presetDimensions[firstPreset] || presetDimensions['1920x1080'];
+        const firstPreset = getItem(indices[0]).preset || '1920x1080';
+        let dims = presetDimensions[firstPreset] || presetDimensions['1920x1080'];
+
+        const videoConfig = await getSupportedVideoEncoderConfig(dims.w, dims.h, fps, 50_000_000);
+        // H.264 exige des dimensions paires : le canvas suit la config validée
+        const outW = videoConfig.width, outH = videoConfig.height;
+        dims = { w: outW, h: outH };
 
         const canvas = document.createElement('canvas');
         canvas.width = dims.w;
@@ -3454,7 +3599,7 @@
         let kbParamsArray = [];
         for(let i = 0; i < groupImages.length; i++) {
             const kbDirectionSetting = document.getElementById('unifiedKenBurnsDirection').value;
-            const crop = cropData[groupImages[i].index] || { offsetX: 0, offsetY: 0, rawOffsetX: 0, rawOffsetY: 0, method: 'center' };
+            const crop = getItem(groupImages[i].index).crop || { offsetX: 0, offsetY: 0, rawOffsetX: 0, rawOffsetY: 0, method: 'center' };
             
             // Le Residual = différence entre le "cadrage parfait" et le "cadrage bloqué par les bords"
             let resX = (crop.rawOffsetX !== undefined) ? (crop.rawOffsetX - crop.offsetX) : 0;
@@ -3518,34 +3663,29 @@
           fastStart: 'in-memory' 
         });
 
+        let encoderError = null;
         let videoEncoder = new VideoEncoder({
           output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
-          error: e => console.error("Erreur de l'encodeur:", e)
+          error: e => { encoderError = e; console.error("Erreur de l'encodeur:", e); }
         });
-
-        videoEncoder.configure({
-          codec: 'avc1.640028',
-          width: dims.w,
-          height: dims.h,
-          bitrate: 50_000_000,
-          framerate: fps,
-          hardwareAcceleration: 'prefer-hardware'
-        });
+        state.encoder = videoEncoder;
+        videoEncoder.configure(videoConfig);
 
         let frameCounter = 0;
         
         for (let currentSlide = 0; currentSlide < groupImages.length; currentSlide++) {
           const item = groupImages[currentSlide];
           const idx = item.index;
-          const preset = imagePresets[idx] || '1920x1080';
-          const crop = cropData[idx] || { zoom: 1, offsetX: 0, offsetY: 0 };
-          const shadow = imageShadowSettings[idx] || { opacity: 0.3, direction: 180, distance: 4, enabled: false };
-          const blur = imageBlurSettings[idx] || { enabled: false, intensity: 10, bgZoom: 1.3 };
-          const bgColor = imageBgColorSettings[idx] || { enabled: false, color: '#ffffff' };
+          const preset = getItem(idx).preset || '1920x1080';
+          const crop = getItem(idx).crop || { zoom: 1, offsetX: 0, offsetY: 0 };
+          const shadow = getItem(idx).shadow || { opacity: 0.3, direction: 180, distance: 4, enabled: false };
+          const blur = getItem(idx).blur || { enabled: false, intensity: 10, bgZoom: 1.3 };
+          const bgColor = getItem(idx).bgColor || { enabled: false, color: '#ffffff' };
           const isBlurPreset = (preset === 'blur');
 
           for (let f = 0; f < framesPerSlide; f++) {
-            
+            if (encoderError) throw encoderError;
+
             // LA FRAME ABSOLUE : Permet de ne pas repartir de 0 si la slide a déjà commencé pendant la transition
             const currentAbsoluteFrame = (currentSlide > 0) ? (f + transitionFrames) : f;
             const currentKb = getKbState(currentSlide, currentAbsoluteFrame);
@@ -3557,11 +3697,11 @@
               if (framesRemainingInSlide <= transitionFrames) {
                 const nextItem = groupImages[currentSlide + 1];
                 const nextIdx = nextItem.index;
-                const nextPreset = imagePresets[nextIdx] || '1920x1080';
-                const nextCrop = cropData[nextIdx] || { zoom: 1, offsetX: 0, offsetY: 0 };
-                const nextShadow = imageShadowSettings[nextIdx] || { opacity: 0.3, direction: 180, distance: 4, enabled: false };
-                const nextBlur = imageBlurSettings[nextIdx] || { enabled: false, intensity: 10, bgZoom: 1.3 };
-                const nextBgColor = imageBgColorSettings[nextIdx] || { enabled: false, color: '#ffffff' };
+                const nextPreset = getItem(nextIdx).preset || '1920x1080';
+                const nextCrop = getItem(nextIdx).crop || { zoom: 1, offsetX: 0, offsetY: 0 };
+                const nextShadow = getItem(nextIdx).shadow || { opacity: 0.3, direction: 180, distance: 4, enabled: false };
+                const nextBlur = getItem(nextIdx).blur || { enabled: false, intensity: 10, bgZoom: 1.3 };
+                const nextBgColor = getItem(nextIdx).bgColor || { enabled: false, color: '#ffffff' };
                 const nextIsBlur = (nextPreset === 'blur');
 
                 const alpha = 1 - (framesRemainingInSlide / transitionFrames);
@@ -3593,6 +3733,11 @@
             videoFrame.close();
             bitmap.close();
 
+            // Évite d'accumuler trop de frames en attente dans l'encodeur
+            while (videoEncoder.encodeQueueSize > 20 && !encoderError) {
+              await new Promise(r => setTimeout(r, 5));
+            }
+
             frameCounter++;
             totalProcessedFrames++;
             
@@ -3606,7 +3751,10 @@
         }
 
         await videoEncoder.flush();
+        if (encoderError) throw encoderError;
         muxer.finalize();
+        videoEncoder.close();
+        state.encoder = null;
 
         const buffer = muxer.target.buffer;
         zip.file(`${folderName}_diaporama.mp4`, buffer);
@@ -3689,7 +3837,8 @@
 
     document.getElementById('modalPresetSelect').addEventListener('change', async (e) => {
       const newPreset = e.target.value;
-      imagePresets[editingIndex] = newPreset;
+      const item = editingItem();
+      item.preset = newPreset;
       
       const isBlur = (newPreset === 'blur');
       const isUne = (newPreset === 'une');
@@ -3699,18 +3848,18 @@
       document.getElementById('zoomValue').textContent = Math.round(zoomLevel * 100) + '%';
       
       showBackgroundBlur = isBlur;
-      imageBlurSettings[editingIndex].enabled = isBlur;
+      item.blur.enabled = isBlur;
       blurToggle.classList.toggle('on', showBackgroundBlur);
       blurIntensityGroup.classList.toggle('visible', showBackgroundBlur);
-      if (isBlur && imageBlurSettings[editingIndex].intensity < 10) {
-          imageBlurSettings[editingIndex].intensity = 20;
+      if (isBlur && item.blur.intensity < 10) {
+          item.blur.intensity = 20;
           backgroundBlurIntensity = 20;
           document.getElementById('blurIntensitySlider').value = 20;
           document.getElementById('blurIntensityValue').textContent = '20px';
       }
 
       showBgColor = isUne;
-      imageBgColorSettings[editingIndex].enabled = isUne;
+      item.bgColor.enabled = isUne;
       const bgColorToggle = document.getElementById('bgColorToggle');
       const bgColorGroup = document.getElementById('bgColorGroup');
       bgColorToggle.classList.toggle('on', showBgColor);
@@ -3725,9 +3874,9 @@
       const offsets = await runAutoCropLogic(currentImage, newPreset, zoomLevel);
       offsetX = offsets.offsetX;
       offsetY = offsets.offsetY;
-      cropData[editingIndex].rawOffsetX = offsets.rawOffsetX; // Sauvegarde pour zoom intelligent
-      cropData[editingIndex].rawOffsetY = offsets.rawOffsetY;
-      cropData[editingIndex].method = offsets.method; 
+      item.crop.rawOffsetX = offsets.rawOffsetX; // Sauvegarde pour zoom intelligent
+      item.crop.rawOffsetY = offsets.rawOffsetY;
+      item.crop.method = offsets.method; 
       rawOffsetX = offsetX;
       rawOffsetY = offsetY;
       
@@ -3759,7 +3908,7 @@
       rawOffsetY += (e.clientY - dragStart.y) * scaleY;
       
       if (enableSnapping && currentImage) {
-        const preset = imagePresets[editingIndex] || '1920x1080';
+        const preset = editingItem().preset || '1920x1080';
         const dims = presetDimensions[preset] || presetDimensions['1920x1080'];
         const isBlurPreset = (preset === 'blur');
         const { drawWidth, drawHeight } = computeDrawSize(dims, { zoom: zoomLevel }, isBlurPreset, currentImage);
@@ -3829,13 +3978,13 @@
       showBackgroundBlur = !showBackgroundBlur;
       blurToggle.classList.toggle('on', showBackgroundBlur);
       blurIntensityGroup.classList.toggle('visible', showBackgroundBlur);
-      imageBlurSettings[editingIndex].enabled = showBackgroundBlur;
+      editingItem().blur.enabled = showBackgroundBlur;
       drawCanvasPreview();
     });
 
     document.getElementById('blurIntensitySlider').addEventListener('input', (e) => {
       backgroundBlurIntensity = parseInt(e.target.value);
-      imageBlurSettings[editingIndex].intensity = backgroundBlurIntensity;
+      editingItem().blur.intensity = backgroundBlurIntensity;
       document.getElementById('blurIntensityValue').textContent = backgroundBlurIntensity + 'px';
       drawCanvasPreview();
     });
@@ -3843,7 +3992,7 @@
     // Événement pour le nouveau slider du zoom du fond flou
     document.getElementById('blurBgZoomSlider').addEventListener('input', (e) => {
       backgroundBlurZoom = parseFloat(e.target.value);
-      imageBlurSettings[editingIndex].bgZoom = backgroundBlurZoom;
+      editingItem().blur.bgZoom = backgroundBlurZoom;
       document.getElementById('blurBgZoomValue').textContent = Math.round(backgroundBlurZoom * 100) + '%';
       drawCanvasPreview();
     });
@@ -3852,18 +4001,18 @@
       showBgColor = !showBgColor;
       document.getElementById('bgColorToggle').classList.toggle('on', showBgColor);
       document.getElementById('bgColorGroup').classList.toggle('visible', showBgColor);
-      if (showBgColor) imageBgColorSettings[editingIndex].enabled = true;
+      if (showBgColor) editingItem().bgColor.enabled = true;
       drawCanvasPreview();
     });
 
     document.getElementById('bgColorPicker').addEventListener('input', (e) => {
       bgColorValue = e.target.value;
-      imageBgColorSettings[editingIndex].color = bgColorValue;
+      editingItem().bgColor.color = bgColorValue;
       drawCanvasPreview();
     });
 
     document.getElementById('resetBtn').addEventListener('click', () => {
-      const preset = imagePresets[editingIndex] || '1920x1080';
+      const preset = editingItem().preset || '1920x1080';
       zoomLevel = preset === 'blur' ? 0.85 : 1;
       offsetX = 0; offsetY = 0; rawOffsetX = 0; rawOffsetY = 0;
       document.getElementById('zoomSlider').value = zoomLevel;
@@ -3877,13 +4026,14 @@
       const originalText = btn.innerHTML;
       btn.textContent = "⏳ Analyse...";
 
-      const preset = imagePresets[editingIndex] || '1920x1080';
+      const item = editingItem();
+      const preset = item.preset || '1920x1080';
       const offsets = await runAutoCropLogic(currentImage, preset, zoomLevel);
       offsetX = offsets.offsetX;
       offsetY = offsets.offsetY;
-      cropData[editingIndex].rawOffsetX = offsets.rawOffsetX; // Sauvegarde pour zoom intelligent
-      cropData[editingIndex].rawOffsetY = offsets.rawOffsetY;
-      cropData[editingIndex].method = offsets.method; 
+      item.crop.rawOffsetX = offsets.rawOffsetX; // Sauvegarde pour zoom intelligent
+      item.crop.rawOffsetY = offsets.rawOffsetY;
+      item.crop.method = offsets.method; 
       rawOffsetX = offsetX;
       rawOffsetY = offsetY;
 
@@ -3903,21 +4053,21 @@
       document.getElementById('progressWrap').classList.add('visible');
       showStatus("Application en cours...", "success");
 
-      const presetToApply = imagePresets[editingIndex];
+      const presetToApply = editingItem().preset;
 
       for (let i = 0; i < targets.length; i++) {
           const idx = targets[i];
-          const oldPreset = imagePresets[idx];
+          const oldPreset = getItem(idx).preset;
           
-          imagePresets[idx] = presetToApply;
-          cropData[idx].zoom = zoomLevel;
-          imageShadowSettings[idx] = { enabled: showShadow, opacity: shadowOpacity, direction: shadowDirection, distance: shadowDistance };
-          imageBlurSettings[idx] = { enabled: showBackgroundBlur, intensity: backgroundBlurIntensity, bgZoom: backgroundBlurZoom };
-          imageBgColorSettings[idx] = { enabled: showBgColor, color: bgColorValue };
-          imageCustomized[idx] = true;
+          getItem(idx).preset = presetToApply;
+          getItem(idx).crop.zoom = zoomLevel;
+          getItem(idx).shadow = { enabled: showShadow, opacity: shadowOpacity, direction: shadowDirection, distance: shadowDistance };
+          getItem(idx).blur = { enabled: showBackgroundBlur, intensity: backgroundBlurIntensity, bgZoom: backgroundBlurZoom };
+          getItem(idx).bgColor = { enabled: showBgColor, color: bgColorValue };
+          getItem(idx).customized = true;
 
-          if (oldPreset !== presetToApply || cropData[idx].zoom !== zoomLevel) {
-              await applyAutoCrop(idx, selectedFiles[idx]);
+          if (oldPreset !== presetToApply || getItem(idx).crop.zoom !== zoomLevel) {
+              await applyAutoCrop(idx, getItem(idx).file);
           }
 
           document.getElementById('progressBar').style.width = (((i + 1) / targets.length) * 100) + '%';
@@ -3929,55 +4079,53 @@
     }
 
     document.getElementById('modalApplyAllBtn').addEventListener('click', async () => {
-      const targets = selectedFiles.map((_, i) => i);
+      const targets = items.map(it => it.id);
       await applyCurrentSettingsToTargets(targets);
       closeModal(false);
     });
 
     document.getElementById('modalApplySelectionBtn').addEventListener('click', async () => {
-      const targets = activeSelection.size > 0 ? Array.from(activeSelection) : [editingIndex];
+      const targets = activeSelection.size > 0 ? Array.from(activeSelection) : [editingId];
       await applyCurrentSettingsToTargets(targets);
       closeModal(false);
     });
 
     function saveEditorState() {
-      if (editingIndex < 0) return;
-      cropData[editingIndex].zoom = zoomLevel;
-      cropData[editingIndex].offsetX = offsetX;
-      cropData[editingIndex].offsetY = offsetY;
-      imageShadowSettings[editingIndex] = {
+      if (!editingItem()) return;
+      editingItem().crop.zoom = zoomLevel;
+      editingItem().crop.offsetX = offsetX;
+      editingItem().crop.offsetY = offsetY;
+      editingItem().shadow = {
         opacity: shadowOpacity, direction: shadowDirection,
         distance: shadowDistance, enabled: showShadow
       };
-      imageBlurSettings[editingIndex] = {
+      editingItem().blur = {
         enabled: showBackgroundBlur, intensity: backgroundBlurIntensity, bgZoom: backgroundBlurZoom
       };
-      imageBgColorSettings[editingIndex] = {
+      editingItem().bgColor = {
         enabled: showBgColor, color: bgColorValue
       };
-      imageCustomized[editingIndex] = true;
+      editingItem().customized = true;
       updateGallery();
     }
     
     async function applyAllAutoCrop(preset) {
-      if (selectedFiles.length === 0) return;
-      const targets = activeSelection.size > 0 ? Array.from(activeSelection) : selectedFiles.map((_, i) => i);
+      if (items.length === 0) return;
+      const targets = activeSelection.size > 0 ? Array.from(activeSelection) : items.map(it => it.id);
 
       document.getElementById('progressWrap').classList.add('visible');
       showStatus("Recadrage automatique en cours...", "success");
 
-      const isBlurPreset = (preset === 'blur');
-
       for (let i = 0; i < targets.length; i++) {
         const idx = targets[i];
-        imagePresets[idx] = preset;
-        const isUne = (preset === 'une');
-        
-        cropData[idx] = { zoom: isBlurPreset ? 0.85 : 1, offsetX: 0, offsetY: 0, rawOffsetX: 0, rawOffsetY: 0, method: 'center' };
-        imageBlurSettings[idx] = isBlurPreset ? { enabled: true, intensity: 20, bgZoom: 1.3 } : { enabled: false, intensity: 10, bgZoom: 1.3 };
-        imageBgColorSettings[idx] = { enabled: isUne, color: '#ffffff' };
-        
-        await applyAutoCrop(idx, selectedFiles[idx]);
+        const it = getItem(idx);
+        if (!it) continue;
+        it.preset = preset;
+        it.crop = defaultCrop(preset);
+        it.blur = defaultBlur(preset);
+        it.bgColor = defaultBgColor(preset);
+
+        await applyAutoCrop(idx, it.file);
         document.getElementById('progressBar').style.width = (((i + 1) / targets.length) * 100) + '%';
       }
 
@@ -3996,12 +4144,9 @@
       showStatus("Importation et analyse IA en cours...", "success");
 
       const currentActivePreset = document.querySelector('.preset-btn.active').dataset.preset || '1920x1080';
-      const isBlurPreset = (currentActivePreset === 'blur');
-
       for (let i = 0; i < images.length; i++) {
         const file = images[i];
-        selectedFiles.push(file);
-        
+
         let folderName = "Divers";
         if (file.webkitRelativePath) {
           const parts = file.webkitRelativePath.split('/');
@@ -4009,17 +4154,8 @@
             folderName = parts[parts.length - 2];
           }
         }
-        fileFolders.push(folderName);
 
-        const idx = selectedFiles.length - 1;
-        imagePresets[idx] = currentActivePreset;
-        const isUne = (currentActivePreset === 'une');
-        
-        cropData[idx] = { zoom: isBlurPreset ? 0.85 : 1, offsetX: 0, offsetY: 0, rawOffsetX: 0, rawOffsetY: 0, method: 'center' };
-        imageShadowSettings[idx] = { opacity: 0.3, direction: 180, distance: 4, enabled: false };
-        imageBlurSettings[idx] = isBlurPreset ? { enabled: true, intensity: 20, bgZoom: 1.3 } : { enabled: false, intensity: 10, bgZoom: 1.3 };
-        imageBgColorSettings[idx] = { enabled: isUne, color: '#ffffff' };
-        imageCustomized[idx] = false;
+        const idx = addItem(file, folderName, currentActivePreset).id;
 
         await applyAutoCrop(idx, file);
         document.getElementById('progressBar').style.width = (((i + 1) / images.length) * 100) + '%';
@@ -4030,22 +4166,24 @@
       
       activeSelection.clear();
       updateGallerySelectionUI();
-      document.getElementById('fileCountNum').textContent = selectedFiles.length;
+      document.getElementById('fileCountNum').textContent = items.length;
       updateGallery();
     }
 
-    function applyAutoCrop(index, file) {
+    function applyAutoCrop(id, file) {
       return new Promise((resolve) => {
         const img = new Image();
         img.onload = async () => {
-          const preset = imagePresets[index] || '1920x1080';
-          const zoomLvl = cropData[index].zoom || (preset === 'blur' ? 0.85 : 1);
-          const offsets = await runAutoCropLogic(img, preset, zoomLvl);
-          cropData[index].offsetX = offsets.offsetX;
-          cropData[index].offsetY = offsets.offsetY;
-          cropData[index].rawOffsetX = offsets.rawOffsetX; // Sauvegarde pour zoom intelligent
-          cropData[index].rawOffsetY = offsets.rawOffsetY;
-          cropData[index].method = offsets.method; 
+          const it = getItem(id);
+          if (it) {
+            const zoomLvl = it.crop.zoom || (it.preset === 'blur' ? 0.85 : 1);
+            const offsets = await runAutoCropLogic(img, it.preset || '1920x1080', zoomLvl);
+            it.crop.offsetX = offsets.offsetX;
+            it.crop.offsetY = offsets.offsetY;
+            it.crop.rawOffsetX = offsets.rawOffsetX; // Sauvegarde pour zoom intelligent
+            it.crop.rawOffsetY = offsets.rawOffsetY;
+            it.crop.method = offsets.method;
+          }
           URL.revokeObjectURL(img.src);
           resolve();
         };
@@ -4056,14 +4194,9 @@
 
     function updateGallery() {
       galleryContainer.innerHTML = '';
-      document.getElementById('fileCountNum').textContent = selectedFiles.length;
+      document.getElementById('fileCountNum').textContent = items.length;
 
-      let itemsArray = selectedFiles.map((file, index) => ({
-        file,
-        index,
-        folder: fileFolders[index] || 'Divers',
-        preset: imagePresets[index] || '1920x1080'
-      }));
+      let itemsArray = items.map(it => ({ file: it.file, index: it.id, folder: it.folder, preset: it.preset }));
 
       if (currentSortMode === 'name-asc') {
         itemsArray.sort((a, b) => a.file.name.localeCompare(b.file.name));
@@ -4114,18 +4247,20 @@
         itemsArray.forEach(item => renderGalleryItem(item.index, galleryGrid));
       }
       
+      displayOrder = itemsArray.map(it => it.index);
       updateGallerySelectionUI();
     }
 
-    function renderGalleryItem(index, container) {
-      const file = selectedFiles[index];
-      const preset = imagePresets[index] || '1920x1080';
+    function renderGalleryItem(id, container) {
+      const it = getItem(id);
+      const file = it.file;
+      const preset = it.preset || '1920x1080';
       const dims = presetDimensions[preset] || presetDimensions['1920x1080'];
       
       const item = document.createElement('div');
       item.className = 'gallery-item';
-      item.dataset.index = index;
-      if (activeSelection.has(index)) item.classList.add('selected');
+      item.dataset.id = id;
+      if (activeSelection.has(id)) item.classList.add('selected');
 
       item.innerHTML = `
         <div class="gallery-item-preview"><canvas width="${dims.w}" height="${dims.h}"></canvas></div>
@@ -4142,10 +4277,7 @@
 
       const img = new Image();
       img.onload = () => {
-        const crop = cropData[index] || { zoom: 1, offsetX: 0, offsetY: 0 };
-        const shadow = imageShadowSettings[index] || { opacity: 0.3, direction: 180, distance: 4, enabled: false };
-        const blur = imageBlurSettings[index] || { enabled: false, intensity: 10, bgZoom: 1.3 };
-        const bgColor = imageBgColorSettings[index] || { enabled: false, color: '#ffffff' };
+        const { crop, shadow, blur, bgColor } = it;
         const isBlurPreset = (preset === 'blur');
 
         const canvas = item.querySelector('canvas');
@@ -4160,32 +4292,32 @@
       item.addEventListener('mousedown', e => e.stopPropagation()); 
       item.addEventListener('click', (e) => {
           e.stopPropagation();
-          if (e.shiftKey && lastSelectedIndex !== -1) {
-              const start = Math.min(lastSelectedIndex, index);
-              const end = Math.max(lastSelectedIndex, index);
+          if (e.shiftKey && lastSelectedId !== null && displayOrder.includes(lastSelectedId)) {
+              const from = displayOrder.indexOf(lastSelectedId);
+              const to = displayOrder.indexOf(id);
               if (!e.ctrlKey && !e.metaKey) activeSelection.clear();
-              for (let i = start; i <= end; i++) activeSelection.add(i);
+              for (let i = Math.min(from, to); i <= Math.max(from, to); i++) activeSelection.add(displayOrder[i]);
           } else if (e.ctrlKey || e.metaKey) {
-              if (activeSelection.has(index)) activeSelection.delete(index);
-              else activeSelection.add(index);
-              lastSelectedIndex = index;
+              if (activeSelection.has(id)) activeSelection.delete(id);
+              else activeSelection.add(id);
+              lastSelectedId = id;
           } else {
               activeSelection.clear();
-              activeSelection.add(index);
-              lastSelectedIndex = index;
+              activeSelection.add(id);
+              lastSelectedId = id;
           }
           updateGallerySelectionUI();
       });
 
       item.querySelector('.edit-overlay-btn').addEventListener('click', (e) => {
         e.stopPropagation();
-        editingIndex = index;
+        editingId = id;
         openEditorModal(file.name);
       });
 
       item.addEventListener('dblclick', (e) => {
         e.stopPropagation();
-        editingIndex = index;
+        editingId = id;
         openEditorModal(file.name);
       });
     }
@@ -4266,9 +4398,10 @@
 
       const img = new Image();
       img.onload = () => {
+        if (!editingItem()) { URL.revokeObjectURL(img.src); return; }
         currentImage = img;
-        const preset = imagePresets[editingIndex] || '1920x1080';
-        const crop = cropData[editingIndex] || { zoom: 1, offsetX: 0, offsetY: 0 };
+        const preset = editingItem().preset || '1920x1080';
+        const crop = editingItem().crop || { zoom: 1, offsetX: 0, offsetY: 0 };
 
         const initialZoom = crop.zoom ?? (preset === 'blur' ? 0.85 : 1);
         zoomLevel = initialZoom;
@@ -4283,7 +4416,7 @@
         document.getElementById('zoomSlider').value = zoomLevel;
         document.getElementById('zoomValue').textContent = Math.round(zoomLevel * 100) + '%';
 
-        const shadow = imageShadowSettings[editingIndex] || {};
+        const shadow = editingItem().shadow || {};
         showShadow = shadow.enabled === true;
         shadowOpacity = shadow.opacity ?? 0.3;
         shadowDirection = shadow.direction ?? 180;
@@ -4297,7 +4430,7 @@
         document.getElementById('shadowDirectionValue').textContent = shadowDirection + '°';
         document.getElementById('shadowDistanceValue').textContent = shadowDistance + 'px';
 
-        const blur = imageBlurSettings[editingIndex] || {};
+        const blur = editingItem().blur || {};
         showBackgroundBlur = blur.enabled || false;
         backgroundBlurIntensity = blur.intensity || 20;
         backgroundBlurZoom = blur.bgZoom || 1.3;
@@ -4309,7 +4442,7 @@
         document.getElementById('blurBgZoomSlider').value = backgroundBlurZoom;
         document.getElementById('blurBgZoomValue').textContent = Math.round(backgroundBlurZoom * 100) + '%';
         
-        const bgColor = imageBgColorSettings[editingIndex] || { enabled: false, color: '#ffffff' };
+        const bgColor = editingItem().bgColor || { enabled: false, color: '#ffffff' };
         showBgColor = bgColor.enabled;
         bgColorValue = bgColor.color;
         document.getElementById('bgColorToggle').classList.toggle('on', showBgColor);
@@ -4319,27 +4452,21 @@
         URL.revokeObjectURL(img.src);
         drawCanvasPreview();
       };
-      img.src = URL.createObjectURL(selectedFiles[editingIndex]);
+      img.src = URL.createObjectURL(editingItem().file);
     }
 
     function closeModal(save = false) {
       if (save) saveEditorState();
       editorModal.classList.remove('open');
-      editingIndex = -1;
+      editingId = null;
       currentImage = null;
     }
 
     function resetAll() {
-      selectedFiles = [];
-      fileFolders = [];
-      cropData = [];
-      imagePresets = [];
-      imageShadowSettings = [];
-      imageBlurSettings = [];
-      imageBgColorSettings = [];
-      imageCustomized = [];
+      clearItems();
       activeSelection.clear();
-      lastSelectedIndex = -1;
+      lastSelectedId = null;
+      displayOrder = [];
       uploadView.classList.remove('hidden');
       editorView.classList.remove('active');
       hideStatus();
@@ -4349,7 +4476,7 @@
 
     function drawCanvasPreview() {
       if (!currentImage) return;
-      const preset = imagePresets[editingIndex] || '1920x1080';
+      const preset = editingItem().preset || '1920x1080';
       const dims = presetDimensions[preset] || presetDimensions['1920x1080'];
       const isBlurPreset = (preset === 'blur');
 
@@ -4433,23 +4560,20 @@
       const zip = new JSZip();
       let countExported = 0;
 
-      for (let i = 0; i < selectedFiles.length; i++) {
+      for (let i = 0; i < items.length; i++) {
         try {
-          const folder = fileFolders[i] || 'Divers';
+          const it = items[i];
+          const folder = it.folder;
           
           if (!targetFolders.includes(folder)) continue;
 
-          const preset = imagePresets[i] || '1920x1080';
+          const preset = it.preset || '1920x1080';
           const dims = presetDimensions[preset] || presetDimensions['1920x1080'];
-          const crop = cropData[i] || { zoom: 1, offsetX: 0, offsetY: 0 };
-          const shadow = imageShadowSettings[i] || { opacity: 0.3, direction: 180, distance: 4, enabled: false };
-          const blur = imageBlurSettings[i] || { enabled: false, intensity: 10, bgZoom: 1.3 };
-          const bgColor = imageBgColorSettings[i] || { enabled: false, color: '#ffffff' };
           const isBlurPreset = (preset === 'blur');
 
-          const blob = await resizeImage(selectedFiles[i], dims, crop, shadow, blur, format, bgColor, isBlurPreset, false);
+          const blob = await resizeImage(it.file, dims, it.crop, it.shadow, it.blur, format, it.bgColor, isBlurPreset, false);
           
-          const cleanName = selectedFiles[i].name.replace(/\.[^.]+$/, '');
+          const cleanName = it.file.name.replace(/\.[^.]+$/, '');
           
           let pathInZip = `${cleanName}.${format}`;
           if (structure === 'folders') {
@@ -4458,7 +4582,7 @@
 
           zip.file(pathInZip, blob, { binary: true });
           countExported++;
-          document.getElementById('progressBar').style.width = ((i + 1) / selectedFiles.length * 100) + '%';
+          document.getElementById('progressBar').style.width = ((i + 1) / items.length * 100) + '%';
         } catch {
           showStatus('Erreur lors du traitement des images.', 'error');
           return;
