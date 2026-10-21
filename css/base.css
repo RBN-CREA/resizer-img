@@ -170,3 +170,18 @@ body::before {
 }
 
 .app-view.active { display: flex; }
+
+/* Pied de page discret */
+.app-footer {
+  flex-shrink: 0;
+  padding-top: 10px;
+  text-align: center;
+  font-size: 0.6875rem;
+}
+
+.app-footer a {
+  color: var(--text-dim);
+  text-decoration: none;
+}
+
+.app-footer a:hover { color: var(--text-muted); text-decoration: underline; }

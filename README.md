@@ -43,6 +43,9 @@ Le code est en modules ES (`<script type="module">`) : il doit être servi en HT
 
 ```
 index.html              page et structure
+mentions-legales.html   mentions légales (éditeur anonyme, hébergeur, données, licences)
+robots.txt              pas d'indexation par les moteurs de recherche
+vercel.json             en-têtes HTTP (cache, sécurité, noindex) pour Vercel
 css/                    fonts, base, components, layout, gallery, sidebar, status, modals, video, feedback, notify (chargement, messages, notification d'export), responsive
 serve.py                serveur local de développement (sans cache)
 vendor/                 bibliothèques tierces, modèle de détection de visages, police Inter
