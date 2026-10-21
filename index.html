@@ -1233,6 +1233,38 @@
       background: var(--surface);
     }
 
+    /* Toast (annulation) */
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 28px;
+      transform: translateX(-50%);
+      display: none;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 16px;
+      background: var(--surface-3);
+      border: 1px solid var(--border-hover);
+      border-radius: var(--radius-sm);
+      box-shadow: var(--shadow);
+      font-size: 0.875rem;
+      z-index: 3000;
+    }
+
+    .toast.visible { display: flex; }
+
+    .toast button {
+      background: transparent;
+      border: none;
+      color: var(--accent-hover);
+      font-family: inherit;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .toast button:hover { text-decoration: underline; }
+
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 3px; }
@@ -1564,7 +1596,12 @@
                 </div>
               </div>
 
-              <div style="margin-top: auto; display: flex; justify-content: flex-end; gap: 12px; flex-wrap: wrap;">
+              <div style="margin-top: auto; display: flex; justify-content: flex-end; align-items: center; gap: 12px; flex-wrap: wrap;">
+                <select class="format-select" id="videoExportQuality" title="Qualité de l'export (débit adapté à la résolution)" style="width: auto; padding: 14px 40px 14px 16px; font-size: 0.85rem; background-position: right 12px center;">
+                  <option value="standard">Standard (~6 Mbps en 1080p)</option>
+                  <option value="high">Haute (~13 Mbps en 1080p)</option>
+                  <option value="broadcast"  selected>Broadcast (~50 Mbps en 1080p)</option>
+                </select>
                 <button class="btn btn-ghost" id="exportFastVideoBtn" style="padding: 14px 24px; font-size: 0.95rem;">
                   ⚡ Export Rapide (Coupe via Timecodes)
                 </button>
@@ -1829,6 +1866,15 @@
               </div>
             </div>
 
+            <div>
+              <label style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 8px; display: block;">Qualité vidéo (débit adapté à la résolution)</label>
+              <select class="format-select" id="unifiedVideoQuality">
+                  <option value="standard">Standard (~6 Mbps en 1080p)</option>
+                  <option value="high" selected>Haute (~13 Mbps en 1080p)</option>
+                  <option value="broadcast">Broadcast (~50 Mbps en 1080p)</option>
+              </select>
+            </div>
+
             <!-- ZOOM KEN BURNS -->
             <div style="background: var(--surface-3); padding: 12px; border-radius: 8px; border: 1px solid var(--border);">
               <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -1855,7 +1901,7 @@
             <div style="margin-top: 8px; padding-top: 16px; border-top: 1px solid var(--border);">
               <p style="font-size: 0.8125rem; color: var(--success); display: flex; align-items: center; gap: 6px; font-weight: 500;">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                Rendu matériel ultra-rapide activé (H.264 MP4 / 50 Mbps)
+                Rendu matériel activé (H.264 MP4)
               </p>
             </div>
           </div>
@@ -1876,6 +1922,55 @@
   <script>
     function escapeHtml(str) {
       return String(str).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    // Boîte de confirmation intégrée (remplace confirm()) — renvoie une Promise<boolean>
+    function confirmDialog(title, message, okLabel = 'Confirmer') {
+      return new Promise(resolve => {
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay open';
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        overlay.innerHTML = `
+          <div class="modal" style="max-width: 420px;">
+            <div class="modal-header"><h2></h2></div>
+            <div style="padding: 20px 24px; font-size: 0.9rem; color: var(--text-muted);"></div>
+            <div class="modal-footer">
+              <div class="modal-footer-right" style="margin-left: auto;">
+                <button class="btn btn-ghost" data-act="cancel">Annuler</button>
+                <button class="btn btn-danger" data-act="ok"></button>
+              </div>
+            </div>
+          </div>`;
+        overlay.querySelector('h2').textContent = title;
+        overlay.querySelector('.modal-header + div').textContent = message;
+        const okBtn = overlay.querySelector('[data-act="ok"]');
+        okBtn.textContent = okLabel;
+
+        const finish = (value) => {
+          document.removeEventListener('keydown', onKey, true);
+          overlay.remove();
+          resolve(value);
+        };
+        const onKey = (e) => {
+          if (e.key === 'Escape') { e.stopPropagation(); finish(false); }
+        };
+        document.addEventListener('keydown', onKey, true);
+        overlay.addEventListener('click', (e) => {
+          if (e.target === overlay) finish(false);
+          const act = e.target.closest('[data-act]');
+          if (act) finish(act.dataset.act === 'ok');
+        });
+        document.body.appendChild(overlay);
+        overlay.querySelector('[data-act="cancel"]').focus();
+      });
+    }
+
+    // Débit H.264 adapté à la résolution : bits par pixel selon la qualité choisie
+    const VIDEO_QUALITY_BPP = { standard: 0.12, high: 0.25, broadcast: 0.96 }; // ≈ 6 / 13 / 50 Mbps en 1080p25
+    function computeVideoBitrate(w, h, fps, quality) {
+      const bpp = VIDEO_QUALITY_BPP[quality] || VIDEO_QUALITY_BPP.high;
+      return Math.round(Math.min(100_000_000, Math.max(2_000_000, w * h * fps * bpp)));
     }
 
     // Attend un événement du <video>, ou échoue sur erreur / délai dépassé
@@ -2599,7 +2694,8 @@
       }
     }
 
-    document.getElementById('clearVideoBtn').addEventListener('click', () => {
+    document.getElementById('clearVideoBtn').addEventListener('click', async () => {
+      if (analyzedVideos.length > 0 && !(await confirmDialog('Tout effacer ?', `${analyzedVideos.length} vidéo(s) et leurs réglages seront retirées de l'espace de travail.`, 'Tout effacer'))) return;
       analyzedVideos = [];
       activeVideoIndex = -1;
       mainPlayer.pause();
@@ -2611,7 +2707,7 @@
       videoInput.value = '';
     });
 
-    async function exportSingleVideo(vidData, isFastExport, onProgressCallback) {
+    async function exportSingleVideo(vidData, isFastExport, onProgressCallback, quality = 'broadcast') {
         let videoEncoder = null;
         let audioEncoder = null;
         let encoderError = null;
@@ -2667,7 +2763,7 @@
             const fps = 25;
 
             // --- 2. CONFIGURATION SUPPORTÉE PAR LE NAVIGATEUR ---
-            const videoConfig = await getSupportedVideoEncoderConfig(targetW, targetH, fps, 50_000_000);
+            const videoConfig = await getSupportedVideoEncoderConfig(targetW, targetH, fps, computeVideoBitrate(targetW, targetH, fps, quality));
             targetW = videoConfig.width;
             targetH = videoConfig.height;
 
@@ -2831,6 +2927,7 @@
         }
 
         const selectedIndices = Array.from(checkboxes).map(cb => parseInt(cb.dataset.index));
+        const quality = document.getElementById('videoExportQuality').value;
 
         const progressWrap = document.getElementById('videoProgressWrap');
         const progressBar = document.getElementById('videoProgressBar');
@@ -2860,7 +2957,7 @@
 
                     progressBar.style.width = `${percent * 100}%`;
                     showVideoStatus(`Export ${i+1}/${selectedIndices.length} - ${modeText} (${Math.round(percent * 100)}%) - Temps restant : ${formatEta(remaining)}`, "success");
-                });
+                }, quality);
             } catch (e) {
                 console.error("Export échoué :", vidData.file.name, e);
                 failures.push(`${vidData.file.name} (${e && e.message ? e.message : 'erreur inconnue'})`);
@@ -2962,6 +3059,69 @@
       items = [];
       itemsById.clear();
     }
+
+    // --- ANNULER (Ctrl/Cmd+Z) : instantanés de l'état avant chaque action groupée ---
+    const undoStack = [];
+    const UNDO_LIMIT = 20;
+    let toastTimer = null;
+
+    function snapshotItems() {
+      return items.map(it => ({
+        id: it.id, file: it.file, folder: it.folder, preset: it.preset, customized: it.customized,
+        crop: { ...it.crop }, shadow: { ...it.shadow }, blur: { ...it.blur }, bgColor: { ...it.bgColor }
+      }));
+    }
+
+    function pushUndo(label) {
+      undoStack.push({ label, snapshot: snapshotItems() });
+      if (undoStack.length > UNDO_LIMIT) undoStack.shift();
+    }
+
+    function showUndoToast(message) {
+      let toast = document.getElementById('undoToast');
+      if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'undoToast';
+        toast.className = 'toast';
+        toast.setAttribute('role', 'status');
+        toast.innerHTML = '<span></span><button type="button">Annuler</button>';
+        toast.querySelector('button').addEventListener('click', undo);
+        document.body.appendChild(toast);
+      }
+      toast.querySelector('span').textContent = message;
+      toast.classList.add('visible');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove('visible'), 8000);
+    }
+
+    function undo() {
+      if (document.getElementById('progressWrap').classList.contains('visible')) return;
+      const entry = undoStack.pop();
+      if (!entry) return;
+      items = entry.snapshot;
+      itemsById.clear();
+      items.forEach(it => itemsById.set(it.id, it));
+      activeSelection.clear();
+      lastSelectedId = null;
+      uploadView.classList.toggle('hidden', items.length > 0);
+      editorView.classList.toggle('active', items.length > 0);
+      updateGallery();
+      const toast = document.getElementById('undoToast');
+      if (toast) toast.classList.remove('visible');
+      showStatus(`Annulé : ${entry.label}`, 'success');
+      setTimeout(hideStatus, 2500);
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.key.toLowerCase() !== 'z') return;
+      if (!document.getElementById('imageView').classList.contains('active')) return;
+      if (editorModal.classList.contains('open') || unifiedExportModal.classList.contains('open')) return;
+      if (document.querySelector('.modal-overlay.open')) return;
+      const t = e.target;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+      e.preventDefault();
+      undo();
+    });
 
     // Sélection : ensemble d'ids (insensible aux suppressions / tris)
     let activeSelection = new Set();
@@ -3182,12 +3342,14 @@
       const groupName = prompt("Nom du groupe / dossier de destination :", "Série Personnalisée");
       if (!groupName || !groupName.trim()) return;
 
+      pushUndo('Changement de groupe');
       activeSelection.forEach(idx => {
         const it = getItem(idx);
         if (it) it.folder = groupName.trim();
       });
       activeSelection.clear();
       updateGallery();
+      showUndoToast(`Déplacé vers « ${groupName.trim()} »`);
     });
 
     function updateGallerySelectionUI() {
@@ -3390,14 +3552,23 @@
     document.getElementById('modalApplyBtn').addEventListener('click', () => closeModal(true));
     document.getElementById('newUploadBtn').addEventListener('click', () => fileInput.click());
     
-    document.getElementById('clearBtn').addEventListener('click', () => {
+    document.getElementById('clearBtn').addEventListener('click', async () => {
+      if (items.length === 0) return;
       if (activeSelection.size > 0 && activeSelection.size < items.length) {
+          const n = activeSelection.size;
+          pushUndo(`${n} image(s) supprimée(s)`);
           removeItems(activeSelection);
           activeSelection.clear();
           lastSelectedId = null;
           updateGallery();
+          showUndoToast(`${n} image(s) supprimée(s)`);
       } else {
+          const n = items.length;
+          const ok = await confirmDialog('Tout effacer ?', `${n} image(s) et tous leurs réglages seront retirées. Vous pourrez annuler juste après avec Ctrl/Cmd+Z.`, 'Tout effacer');
+          if (!ok) return;
+          pushUndo(`${n} image(s) supprimée(s)`);
           resetAll();
+          showUndoToast(`${n} image(s) supprimée(s)`);
       }
     });
 
@@ -3585,7 +3756,7 @@
         const firstPreset = getItem(indices[0]).preset || '1920x1080';
         let dims = presetDimensions[firstPreset] || presetDimensions['1920x1080'];
 
-        const videoConfig = await getSupportedVideoEncoderConfig(dims.w, dims.h, fps, 50_000_000);
+        const videoConfig = await getSupportedVideoEncoderConfig(dims.w, dims.h, fps, computeVideoBitrate(dims.w, dims.h, fps, document.getElementById('unifiedVideoQuality').value));
         // H.264 exige des dimensions paires : le canvas suit la config validée
         const outW = videoConfig.width, outH = videoConfig.height;
         dims = { w: outW, h: outH };
@@ -3744,7 +3915,7 @@
             if (totalProcessedFrames % 5 === 0) { 
                 const percent = Math.min(100, Math.round((totalProcessedFrames / totalFramesToProcess) * 100));
                 progressBar.style.width = percent + '%';
-                document.getElementById('statusText').textContent = `Encodage matériel (H.264 / 50 Mbps) : ${percent}%`;
+                document.getElementById('statusText').textContent = `Encodage matériel (H.264 / ${Math.round(videoConfig.bitrate / 1e6)} Mbps) : ${percent}%`;
                 await new Promise(r => setTimeout(r, 0));
             }
           }
@@ -3762,7 +3933,7 @@
 
       showStatus("Compression du fichier ZIP vidéo...", "success");
       try {
-        const blob = await zip.generateAsync({ type: 'blob' });
+        const blob = await zip.generateAsync({ type: 'blob', compression: 'STORE', streamFiles: true });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -4050,6 +4221,7 @@
     });
 
     async function applyCurrentSettingsToTargets(targets) {
+      pushUndo('Réglages appliqués');
       document.getElementById('progressWrap').classList.add('visible');
       showStatus("Application en cours...", "success");
 
@@ -4076,6 +4248,7 @@
       document.getElementById('progressWrap').classList.remove('visible');
       hideStatus();
       updateGallery();
+      showUndoToast(`Réglages appliqués à ${targets.length} image(s)`);
     }
 
     document.getElementById('modalApplyAllBtn').addEventListener('click', async () => {
@@ -4113,6 +4286,7 @@
       if (items.length === 0) return;
       const targets = activeSelection.size > 0 ? Array.from(activeSelection) : items.map(it => it.id);
 
+      pushUndo('Changement de format');
       document.getElementById('progressWrap').classList.add('visible');
       showStatus("Recadrage automatique en cours...", "success");
 
@@ -4132,6 +4306,7 @@
       document.getElementById('progressWrap').classList.remove('visible');
       hideStatus();
       updateGallery();
+      showUndoToast(`Format appliqué à ${targets.length} image(s)`);
     }
 
     async function loadImages(files) {
@@ -4456,7 +4631,7 @@
     }
 
     function closeModal(save = false) {
-      if (save) saveEditorState();
+      if (save && editingItem()) { pushUndo('Modification d\'image'); saveEditorState(); }
       editorModal.classList.remove('open');
       editingId = null;
       currentImage = null;
@@ -4591,7 +4766,7 @@
 
       if (countExported > 0) {
         try {
-          const blob = await zip.generateAsync({ type: 'blob' });
+          const blob = await zip.generateAsync({ type: 'blob', compression: 'STORE', streamFiles: true });
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
