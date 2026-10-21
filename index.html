@@ -2803,6 +2803,7 @@
 
             const totalFrames = Math.round(vidData.duration * fps);
             let exportFrameCounter = 0;
+            let audioSamplesWritten = 0; // l'horodatage audio suit les échantillons réellement écrits (aucun trou ni chevauchement)
 
             for (let f = 0; f < totalFrames; f++) {
                 if (encoderError) throw encoderError;
@@ -2877,12 +2878,13 @@
                             sampleRate: audioBuffer.sampleRate,
                             numberOfFrames: validFrameCount,
                             numberOfChannels: audioBuffer.numberOfChannels,
-                            timestamp: timestamp, // Crucial : Force la synchro audio sur la nouvelle timeline
+                            timestamp: (audioSamplesWritten / audioBuffer.sampleRate) * 1_000_000, // continu, calé sur la nouvelle timeline
                             data: dataBuffer
                         });
 
                         audioEncoder.encode(audioData);
                         audioData.close();
+                        audioSamplesWritten += validFrameCount;
                     }
                 }
 
@@ -3043,6 +3045,7 @@
         shadow: defaultShadow(),
         blur: defaultBlur(preset),
         bgColor: defaultBgColor(preset),
+        customDims: preset === 'custom' ? { w: customW, h: customH } : null,
         customized: false
       };
       items.push(item);
@@ -3068,6 +3071,7 @@
     function snapshotItems() {
       return items.map(it => ({
         id: it.id, file: it.file, folder: it.folder, preset: it.preset, customized: it.customized,
+        customDims: it.customDims ? { ...it.customDims } : null,
         crop: { ...it.crop }, shadow: { ...it.shadow }, blur: { ...it.blur }, bgColor: { ...it.bgColor }
       }));
     }
@@ -3171,6 +3175,12 @@
       'custom': { w: customW, h: customH }
     };
 
+    // Dimensions d'une image : les images « Personnalisé » gardent chacune leurs propres dimensions
+    function dimsOf(it) {
+      if (it && it.preset === 'custom') return it.customDims || { w: customW, h: customH };
+      return presetDimensions[it && it.preset] || presetDimensions['1920x1080'];
+    }
+
     const presetLabels = {
       '1920x1080': 'Horizontal',
       '1080x1920': 'Vertical',
@@ -3189,7 +3199,8 @@
     }
     window.addEventListener('load', loadFaceAI);
 
-    async function runAutoCropLogic(img, preset, zoomLvl) {
+    async function runAutoCropLogic(img, preset, zoomLvl, dims) {
+      dims = dims || presetDimensions[preset] || presetDimensions['1920x1080'];
       let subjectX = img.width / 2;
       let subjectY = img.height / 2;
       let method = 'center';
@@ -3207,7 +3218,6 @@
 
       if (method === 'center' && window.SmartCrop) {
         try {
-          const dims = presetDimensions[preset] || presetDimensions['1920x1080'];
           const result = await SmartCrop.crop(img, { width: dims.w, height: dims.h });
           if (result && result.topCrop) {
             subjectX = result.topCrop.x + (result.topCrop.width / 2);
@@ -3217,7 +3227,6 @@
         } catch (e) {}
       }
 
-      const dims = presetDimensions[preset] || presetDimensions['1920x1080'];
       const isBlurPreset = (preset === 'blur');
       const { drawWidth, drawHeight } = computeDrawSize(dims, { zoom: zoomLvl }, isBlurPreset, img);
       const scale = drawWidth / img.width;
@@ -3424,10 +3433,34 @@
     }
     initScrubbableInputs();
 
-    function syncCustomDims(w, h, r, selectValue = null) {
+    let galleryRefreshQueued = false;
+    function queueGalleryRefresh() {
+      if (galleryRefreshQueued) return;
+      galleryRefreshQueued = true;
+      requestAnimationFrame(() => { galleryRefreshQueued = false; updateGallery(); });
+    }
+
+    // apply=false : met seulement à jour les champs (ex. ouverture de l'éditeur sur une image « Personnalisé »)
+    function syncCustomDims(w, h, r, selectValue = null, apply = true) {
       customW = w; customH = h; customRatio = r;
       presetDimensions['custom'].w = w;
       presetDimensions['custom'].h = h;
+
+      if (apply) {
+        // Les nouvelles dimensions ne concernent que l'image en cours d'édition, ou la sélection
+        // (à défaut, toutes les images « Personnalisé ») — pas les autres tailles déjà définies.
+        const editing = editorModal.classList.contains('open') ? editingItem() : null;
+        if (editing) {
+          if (editing.preset === 'custom') editing.customDims = { w, h };
+        } else {
+          const targets = activeSelection.size > 0 ? [...activeSelection].map(getItem) : items;
+          let touched = false;
+          targets.forEach(it => {
+            if (it && it.preset === 'custom') { it.customDims = { w, h }; touched = true; }
+          });
+          if (touched) queueGalleryRefresh();
+        }
+      }
       
       document.getElementById('customW').value = w;
       document.getElementById('modalCustomW').value = w;
@@ -3753,8 +3786,15 @@
           groupImages.push({ img, index: idx });
         }
 
-        const firstPreset = getItem(indices[0]).preset || '1920x1080';
-        let dims = presetDimensions[firstPreset] || presetDimensions['1920x1080'];
+        // Une vidéo = une seule taille : on retient la plus fréquente du dossier,
+        // les autres images sont ajustées (contain) dans le cadre.
+        const sizeCounts = new Map();
+        indices.forEach(id => {
+          const d = dimsOf(getItem(id));
+          const key = d.w + 'x' + d.h;
+          sizeCounts.set(key, { d, n: (sizeCounts.get(key)?.n || 0) + 1 });
+        });
+        let dims = [...sizeCounts.values()].sort((a, b) => b.n - a.n)[0].d;
 
         const videoConfig = await getSupportedVideoEncoderConfig(dims.w, dims.h, fps, computeVideoBitrate(dims.w, dims.h, fps, document.getElementById('unifiedVideoQuality').value));
         // H.264 exige des dimensions paires : le canvas suit la config validée
@@ -3765,6 +3805,33 @@
         canvas.width = dims.w;
         canvas.height = dims.h;
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+        // Dessine une slide dans le cadre de la vidéo, quelle que soit sa propre taille
+        const slideBuffers = new Map();
+        function drawSlide(targetCtx, slide, kb) {
+          const it = getItem(slide.index);
+          const own = dimsOf(it);
+          const isBlur = it.preset === 'blur';
+          if (Math.abs(own.w - dims.w) <= 1 && Math.abs(own.h - dims.h) <= 1) {
+            renderImage(targetCtx, slide.img, dims, it.crop, it.shadow, it.blur, it.bgColor, isBlur, false, kb);
+            return;
+          }
+          const key = own.w + 'x' + own.h;
+          let buf = slideBuffers.get(key);
+          if (!buf) {
+            buf = document.createElement('canvas');
+            buf.width = own.w; buf.height = own.h;
+            slideBuffers.set(key, buf);
+          }
+          renderImage(buf.getContext('2d'), slide.img, own, it.crop, it.shadow, it.blur, it.bgColor, isBlur, false, kb);
+          const k = Math.min(dims.w / own.w, dims.h / own.h);
+          const w = own.w * k, h = own.h * k;
+          targetCtx.save();
+          targetCtx.fillStyle = '#0a0a0f';
+          targetCtx.fillRect(0, 0, dims.w, dims.h);
+          targetCtx.drawImage(buf, (dims.w - w) / 2, (dims.h - h) / 2, w, h);
+          targetCtx.restore();
+        }
 
         // PRÉ-CALCUL DU COMPORTEMENT KEN BURNS POUR CHAQUE SLIDE DE CE DOSSIER
         let kbParamsArray = [];
@@ -3846,13 +3913,6 @@
         
         for (let currentSlide = 0; currentSlide < groupImages.length; currentSlide++) {
           const item = groupImages[currentSlide];
-          const idx = item.index;
-          const preset = getItem(idx).preset || '1920x1080';
-          const crop = getItem(idx).crop || { zoom: 1, offsetX: 0, offsetY: 0 };
-          const shadow = getItem(idx).shadow || { opacity: 0.3, direction: 180, distance: 4, enabled: false };
-          const blur = getItem(idx).blur || { enabled: false, intensity: 10, bgZoom: 1.3 };
-          const bgColor = getItem(idx).bgColor || { enabled: false, color: '#ffffff' };
-          const isBlurPreset = (preset === 'blur');
 
           for (let f = 0; f < framesPerSlide; f++) {
             if (encoderError) throw encoderError;
@@ -3861,19 +3921,12 @@
             const currentAbsoluteFrame = (currentSlide > 0) ? (f + transitionFrames) : f;
             const currentKb = getKbState(currentSlide, currentAbsoluteFrame);
 
-            renderImage(ctx, item.img, dims, crop, shadow, blur, bgColor, isBlurPreset, false, currentKb);
+            drawSlide(ctx, item, currentKb);
 
             if (transitionType === 'fade' && transitionFrames > 0 && currentSlide < groupImages.length - 1) {
               const framesRemainingInSlide = framesPerSlide - f;
               if (framesRemainingInSlide <= transitionFrames) {
                 const nextItem = groupImages[currentSlide + 1];
-                const nextIdx = nextItem.index;
-                const nextPreset = getItem(nextIdx).preset || '1920x1080';
-                const nextCrop = getItem(nextIdx).crop || { zoom: 1, offsetX: 0, offsetY: 0 };
-                const nextShadow = getItem(nextIdx).shadow || { opacity: 0.3, direction: 180, distance: 4, enabled: false };
-                const nextBlur = getItem(nextIdx).blur || { enabled: false, intensity: 10, bgZoom: 1.3 };
-                const nextBgColor = getItem(nextIdx).bgColor || { enabled: false, color: '#ffffff' };
-                const nextIsBlur = (nextPreset === 'blur');
 
                 const alpha = 1 - (framesRemainingInSlide / transitionFrames);
                 
@@ -3887,7 +3940,7 @@
                 tempCanvas.width = dims.w;
                 tempCanvas.height = dims.h;
                 const tempCtx = tempCanvas.getContext('2d');
-                renderImage(tempCtx, nextItem.img, dims, nextCrop, nextShadow, nextBlur, nextBgColor, nextIsBlur, false, nextKb);
+                drawSlide(tempCtx, nextItem, nextKb);
                 ctx.drawImage(tempCanvas, 0, 0);
                 ctx.restore();
               }
@@ -4010,6 +4063,10 @@
       const newPreset = e.target.value;
       const item = editingItem();
       item.preset = newPreset;
+      if (newPreset === 'custom') {
+        item.customDims = item.customDims || { w: customW, h: customH };
+        syncCustomDims(item.customDims.w, item.customDims.h, item.customDims.w / item.customDims.h, null, false);
+      }
       
       const isBlur = (newPreset === 'blur');
       const isUne = (newPreset === 'une');
@@ -4042,7 +4099,7 @@
       const origText = btn.innerHTML;
       btn.innerHTML = "⏳ Analyse...";
       
-      const offsets = await runAutoCropLogic(currentImage, newPreset, zoomLevel);
+      const offsets = await runAutoCropLogic(currentImage, newPreset, zoomLevel, dimsOf(item));
       offsetX = offsets.offsetX;
       offsetY = offsets.offsetY;
       item.crop.rawOffsetX = offsets.rawOffsetX; // Sauvegarde pour zoom intelligent
@@ -4080,7 +4137,7 @@
       
       if (enableSnapping && currentImage) {
         const preset = editingItem().preset || '1920x1080';
-        const dims = presetDimensions[preset] || presetDimensions['1920x1080'];
+        const dims = dimsOf(editingItem());
         const isBlurPreset = (preset === 'blur');
         const { drawWidth, drawHeight } = computeDrawSize(dims, { zoom: zoomLevel }, isBlurPreset, currentImage);
         const SNAP = 15; 
@@ -4199,7 +4256,7 @@
 
       const item = editingItem();
       const preset = item.preset || '1920x1080';
-      const offsets = await runAutoCropLogic(currentImage, preset, zoomLevel);
+      const offsets = await runAutoCropLogic(currentImage, preset, zoomLevel, dimsOf(item));
       offsetX = offsets.offsetX;
       offsetY = offsets.offsetY;
       item.crop.rawOffsetX = offsets.rawOffsetX; // Sauvegarde pour zoom intelligent
@@ -4226,19 +4283,24 @@
       showStatus("Application en cours...", "success");
 
       const presetToApply = editingItem().preset;
+      const dimsToApply = presetToApply === 'custom' ? { ...dimsOf(editingItem()) } : null;
 
       for (let i = 0; i < targets.length; i++) {
           const idx = targets[i];
           const oldPreset = getItem(idx).preset;
+          const oldDims = getItem(idx).customDims;
+          const zoomChanged = getItem(idx).crop.zoom !== zoomLevel;
           
           getItem(idx).preset = presetToApply;
+          getItem(idx).customDims = dimsToApply ? { ...dimsToApply } : null;
           getItem(idx).crop.zoom = zoomLevel;
           getItem(idx).shadow = { enabled: showShadow, opacity: shadowOpacity, direction: shadowDirection, distance: shadowDistance };
           getItem(idx).blur = { enabled: showBackgroundBlur, intensity: backgroundBlurIntensity, bgZoom: backgroundBlurZoom };
           getItem(idx).bgColor = { enabled: showBgColor, color: bgColorValue };
           getItem(idx).customized = true;
 
-          if (oldPreset !== presetToApply || getItem(idx).crop.zoom !== zoomLevel) {
+          const dimsChanged = !!dimsToApply && (!oldDims || oldDims.w !== dimsToApply.w || oldDims.h !== dimsToApply.h);
+          if (oldPreset !== presetToApply || zoomChanged || dimsChanged) {
               await applyAutoCrop(idx, getItem(idx).file);
           }
 
@@ -4295,6 +4357,7 @@
         const it = getItem(idx);
         if (!it) continue;
         it.preset = preset;
+        it.customDims = preset === 'custom' ? { w: customW, h: customH } : null;
         it.crop = defaultCrop(preset);
         it.blur = defaultBlur(preset);
         it.bgColor = defaultBgColor(preset);
@@ -4352,7 +4415,7 @@
           const it = getItem(id);
           if (it) {
             const zoomLvl = it.crop.zoom || (it.preset === 'blur' ? 0.85 : 1);
-            const offsets = await runAutoCropLogic(img, it.preset || '1920x1080', zoomLvl);
+            const offsets = await runAutoCropLogic(img, it.preset || '1920x1080', zoomLvl, dimsOf(it));
             it.crop.offsetX = offsets.offsetX;
             it.crop.offsetY = offsets.offsetY;
             it.crop.rawOffsetX = offsets.rawOffsetX; // Sauvegarde pour zoom intelligent
@@ -4430,7 +4493,7 @@
       const it = getItem(id);
       const file = it.file;
       const preset = it.preset || '1920x1080';
-      const dims = presetDimensions[preset] || presetDimensions['1920x1080'];
+      const dims = dimsOf(it);
       
       const item = document.createElement('div');
       item.className = 'gallery-item';
@@ -4586,6 +4649,10 @@
         rawOffsetY = offsetY;
         
         document.getElementById('modalPresetSelect').value = preset;
+        if (preset === 'custom') {
+          const d = dimsOf(editingItem());
+          syncCustomDims(d.w, d.h, d.w / d.h, null, false);
+        }
         document.getElementById('modalCustomDimsUI').style.display = (preset === 'custom') ? 'flex' : 'none';
         
         document.getElementById('zoomSlider').value = zoomLevel;
@@ -4652,7 +4719,7 @@
     function drawCanvasPreview() {
       if (!currentImage) return;
       const preset = editingItem().preset || '1920x1080';
-      const dims = presetDimensions[preset] || presetDimensions['1920x1080'];
+      const dims = dimsOf(editingItem());
       const isBlurPreset = (preset === 'blur');
 
       cropCanvas.width = dims.w;
@@ -4743,7 +4810,7 @@
           if (!targetFolders.includes(folder)) continue;
 
           const preset = it.preset || '1920x1080';
-          const dims = presetDimensions[preset] || presetDimensions['1920x1080'];
+          const dims = dimsOf(it);
           const isBlurPreset = (preset === 'blur');
 
           const blob = await resizeImage(it.file, dims, it.crop, it.shadow, it.blur, format, it.bgColor, isBlurPreset, false);
