@@ -240,6 +240,7 @@ export async function runVideoExportMultiple(isFastExport) {
 
     const progressWrap = document.getElementById('videoProgressWrap');
     const progressBar = document.getElementById('videoProgressBar');
+    document.getElementById('videoProgressBar').style.width = '0%'; // repart de zéro (évite de réafficher l'ancien pourcentage)
     progressWrap.classList.add('visible');
     
     const modeText = isFastExport ? "Rapide (via Timecodes)" : "Précis (Frame-Perfect)";

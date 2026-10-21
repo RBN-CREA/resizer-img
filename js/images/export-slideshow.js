@@ -27,6 +27,7 @@ export async function generateVideoWebCodecs(targetFolders, durationInSeconds, t
 }
 
 export async function generateVideoWebCodecsInner(targetFolders, durationInSeconds, transitionType, kenBurnsPercent, state) {
+  document.getElementById('progressBar').style.width = '0%'; // repart de zéro (évite de réafficher l'ancien pourcentage)
   document.getElementById('progressWrap').classList.add('visible');
   const progressBar = document.getElementById('progressBar');
   const originalProgressBg = progressBar.style.background;

@@ -20,10 +20,10 @@ Redimensionneur d'images et montage vidéo « broadcast » qui tourne **entière
 L'application est un site statique, sans étape de build. Pour que l'export vidéo (WebCodecs) fonctionne, servez-la depuis `localhost` ou en HTTPS plutôt que depuis `file://` :
 
 ```bash
-python3 -m http.server 8000
+python3 serve.py
 ```
 
-puis ouvrez <http://localhost:8000>.
+puis ouvrez <http://localhost:8000>. `serve.py` est un petit serveur de développement sans cache navigateur : chaque rechargement affiche la dernière version des fichiers (avec `python3 -m http.server`, le navigateur peut garder d'anciens modules et demander un rechargement forcé, Cmd/Ctrl+Maj+R).
 
 Navigateurs : l'export vidéo exige WebCodecs (Chrome / Edge, ou un Safari récent) ; l'export d'images n'en dépend pas. Seul Chrome a été testé.
 
@@ -44,6 +44,7 @@ Le code est en modules ES (`<script type="module">`) : il doit être servi en HT
 ```
 index.html              page et structure
 css/                    fonts, base, components, layout, gallery, sidebar, status, modals, video, feedback, notify (chargement, messages, notification d'export, style classique), pixel (le même habillage en pixel art), pixel-theme (interface complète en pixel art, optionnelle), responsive
+serve.py                serveur local de développement (sans cache)
 vendor/                 bibliothèques tierces, modèle de détection de visages, police Inter
 js/main.js              point d'entrée
 js/shared/              réglages (APP), échappement HTML, boîtes de dialogue, sprites pixel art, utilitaires d'encodage vidéo

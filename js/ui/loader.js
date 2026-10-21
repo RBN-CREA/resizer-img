@@ -6,6 +6,7 @@ registerPixelSprites();
 
 const SEGMENTS = 20;
 const SHOW_DELAY_MS = 600; // les traitements rapides n'affichent pas d'écran de chargement
+const EXPORT_RE = /export|zip|encodage|encodeur|génération|compression/i; // ces traitements ouvrent la fenêtre sans délai
 
 const SOURCES = [
   { wrap: 'progressWrap', bar: 'progressBar', text: 'statusText', status: 'statusBar' },
@@ -83,6 +84,8 @@ function showOverlay() {
   if (dismissed) return;
   if (!overlay) overlay = buildOverlay();
   overlay.classList.add('visible');
+  // la fenêtre remplace la barre de progression du haut et le texte d'avancement du bas
+  document.documentElement.classList.add('px-loading');
   const app = document.querySelector('.app');
   if (app) app.inert = true; // pas de clics ni de focus derrière pendant le traitement
   updateOverlay();
@@ -90,6 +93,7 @@ function showOverlay() {
 
 function hideOverlay() {
   if (overlay) overlay.classList.remove('visible');
+  document.documentElement.classList.remove('px-loading');
   const app = document.querySelector('.app');
   if (app) app.inert = false;
 }
@@ -100,7 +104,12 @@ function onProgressChange(src) {
   if (running) {
     activeSource = src;
     if (overlay && overlay.classList.contains('visible')) updateOverlay();
-    else if (!showTimer && !dismissed) showTimer = setTimeout(() => { showTimer = null; showOverlay(); }, SHOW_DELAY_MS);
+    else if (!showTimer && !dismissed) {
+      // Les exports affichent la fenêtre tout de suite ; les traitements courts attendent un instant
+      const text = document.getElementById(src.text).textContent;
+      if (EXPORT_RE.test(text)) showOverlay();
+      else showTimer = setTimeout(() => { showTimer = null; showOverlay(); }, SHOW_DELAY_MS);
+    }
   } else if (activeSource === src) {
     clearTimeout(showTimer);
     showTimer = null;
@@ -115,7 +124,18 @@ SOURCES.forEach(src => {
   const bar = document.getElementById(src.bar);
   const text = document.getElementById(src.text);
   new MutationObserver(() => onProgressChange(src)).observe(wrap, { attributes: true, attributeFilter: ['class'] });
-  new MutationObserver(() => updateOverlay()).observe(bar, { attributes: true, attributeFilter: ['style'] });
+  let lastPct = 0;
+  new MutationObserver(() => {
+    // Un nouveau traitement qui redémarre à 0 % rouvre la fenêtre, même si la précédente avait été masquée
+    const pct = readProgress(src);
+    if (pct < lastPct - 1 && dismissed && document.getElementById(src.wrap).classList.contains('visible')) {
+      dismissed = false;
+      activeSource = src;
+      showOverlay();
+    }
+    lastPct = pct;
+    updateOverlay();
+  }).observe(bar, { attributes: true, attributeFilter: ['style'] });
   new MutationObserver(() => updateOverlay()).observe(text, { childList: true, characterData: true, subtree: true });
 
   const status = document.getElementById(src.status);

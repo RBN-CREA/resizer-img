@@ -75,6 +75,7 @@ export async function applyAllAutoCrop(preset) {
   const targets = activeSelection.size > 0 ? Array.from(activeSelection) : items.map(it => it.id);
 
   pushUndo('Changement de format');
+  document.getElementById('progressBar').style.width = '0%'; // repart de zéro (évite de réafficher l'ancien pourcentage)
   document.getElementById('progressWrap').classList.add('visible');
   showStatus("Recadrage automatique en cours...", "success");
 
@@ -104,6 +105,7 @@ export async function loadImages(files) {
 
   uploadView.classList.add('hidden');
   editorView.classList.add('active');
+  document.getElementById('progressBar').style.width = '0%'; // repart de zéro (évite de réafficher l'ancien pourcentage)
   document.getElementById('progressWrap').classList.add('visible');
   showStatus("Importation et analyse IA en cours...", "success");
 

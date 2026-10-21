@@ -10,6 +10,7 @@ export function formatBytes(n) {
 }
 
 export async function processImagesCustom(format, structure, targetFolders, { quality = 0.95, suffix = '' } = {}) {
+  document.getElementById('progressBar').style.width = '0%'; // repart de zéro (évite de réafficher l'ancien pourcentage)
   document.getElementById('progressWrap').classList.add('visible');
   showStatus("Génération du fichier ZIP...", "success");
 

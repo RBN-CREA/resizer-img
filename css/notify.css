@@ -123,6 +123,10 @@ html:not(.px-theme) .px-loader-title-text::after { content: ' en cours'; }
 
 .px-btn:hover { background: var(--surface-2); border-color: var(--border-hover); }
 
+/* Pendant l'affichage de la fenêtre de chargement, ni la barre du haut ni le texte d'avancement du bas */
+html.px-loading .progress-wrap,
+html.px-loading .status-bar { visibility: hidden; }
+
 /* ---------- Messages d'état en bas de la zone de travail ---------- */
 .status-bar::before {
   content: '';

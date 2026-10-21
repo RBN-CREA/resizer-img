@@ -330,6 +330,7 @@ document.getElementById('centerBtn').addEventListener('click', () => {
 
 export async function applyCurrentSettingsToTargets(targets) {
   pushUndo('Réglages appliqués');
+  document.getElementById('progressBar').style.width = '0%'; // repart de zéro (évite de réafficher l'ancien pourcentage)
   document.getElementById('progressWrap').classList.add('visible');
   showStatus("Application en cours...", "success");
 
