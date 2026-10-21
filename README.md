@@ -43,7 +43,7 @@ Le code est en modules ES (`<script type="module">`) : il doit être servi en HT
 
 ```
 index.html              page et structure
-css/                    fonts, base, components, layout, gallery, sidebar, status, modals, video, feedback, pixel (messages et chargement), pixel-theme (interface complète en pixel art), responsive
+css/                    fonts, base, components, layout, gallery, sidebar, status, modals, video, feedback, pixel (chargement, messages, notification d'export), pixel-theme (style pixel art optionnel), responsive
 vendor/                 bibliothèques tierces, modèle de détection de visages, police Inter
 js/main.js              point d'entrée
 js/shared/              réglages (APP), échappement HTML, boîtes de dialogue, sprites pixel art, utilitaires d'encodage vidéo

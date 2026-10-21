@@ -1,6 +1,6 @@
 // Écran de chargement pixel art + messages d'état stylés.
 // Il observe les barres de progression existantes (images et vidéos) : aucun traitement n'a besoin de le connaître.
-import { registerPixelSprites, pixelConfetti } from '../shared/pixel.js';
+import { registerPixelSprites } from '../shared/pixel.js';
 
 registerPixelSprites();
 
@@ -105,21 +105,15 @@ SOURCES.forEach(src => {
   new MutationObserver(() => updateOverlay()).observe(bar, { attributes: true, attributeFilter: ['style'] });
   new MutationObserver(() => updateOverlay()).observe(text, { childList: true, characterData: true, subtree: true });
 
-  // Réussite d'un export : petite gerbe de confettis
   const status = document.getElementById(src.status);
-  let lastConfettiAt = 0;
+  // Un message de réussite libère l'écran tout de suite, sans attendre que la barre de progression se retire
   new MutationObserver(() => {
     const done = status.classList.contains('success') && /export|succès|terminé/i.test(text.textContent) && !/en cours|%/.test(text.textContent);
     if (done) {
-      // Le message de réussite prend le relais : on libère l'écran sans attendre que la barre de progression se retire
       clearTimeout(showTimer);
       showTimer = null;
       dismissed = true;
       hideOverlay();
-    }
-    if (done && Date.now() - lastConfettiAt > 3000) {
-      lastConfettiAt = Date.now();
-      pixelConfetti();
     }
   }).observe(status, { attributes: true, attributeFilter: ['class'] });
 });

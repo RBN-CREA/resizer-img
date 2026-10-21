@@ -2,6 +2,7 @@ import { showStatus } from './dom.js';
 import { items } from './state.js';
 import { dimsOf } from './dims.js';
 import { renderImage } from './render.js';
+import { reportExport } from '../shared/dialogs.js';
 import { APP } from '../shared/config.js';
 
 export function formatBytes(n) {
@@ -52,7 +53,9 @@ export async function processImagesCustom(format, structure, targetFolders, { qu
 
   if (countExported === 0) {
     document.getElementById('progressWrap').classList.remove('visible');
-    showStatus(failed.length ? `Erreur lors du traitement des images (${failed.join(', ')}).` : 'Aucune image à exporter.', 'error');
+    const msg = failed.length ? `Erreur lors du traitement des images (${failed.join(', ')}).` : 'Aucune image à exporter.';
+    showStatus(msg, 'error');
+    reportExport({ type: 'error', lines: [failed.length ? 'Aucune image n\'a pu être exportée.' : 'Aucune image à exporter.'], errors: failed.map(n => `Échec : ${n}`) });
     return;
   }
 
@@ -68,10 +71,16 @@ export async function processImagesCustom(format, structure, targetFolders, { qu
     showStatus(failed.length
       ? `${countExported} image(s) exportée(s) (${formatBytes(blob.size)}) — échec : ${failed.join(', ')}`
       : `${countExported} image(s) exportée(s) avec succès ! (${formatBytes(blob.size)})`, failed.length ? 'error' : 'success');
+    reportExport({
+      type: failed.length ? 'error' : 'success',
+      lines: [`${countExported} image(s) en ${format === 'jpg' ? 'JPEG' : format.toUpperCase()} — ${formatBytes(blob.size)}`, 'Fichier : images_redimensionnees.zip'],
+      errors: failed.map(n => `Échec : ${n}`)
+    });
   } catch (e) {
     console.error(e);
     document.getElementById('progressWrap').classList.remove('visible');
     showStatus('Erreur lors de la création du ZIP.', 'error');
+    reportExport({ type: 'error', lines: ['Le fichier ZIP n\'a pas pu être créé.'] });
   }
 }
 

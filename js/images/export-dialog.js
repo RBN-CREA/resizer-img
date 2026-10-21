@@ -4,6 +4,7 @@ import { hideStatus, showStatus, unifiedExportModal } from './dom.js';
 import { processImagesCustom } from './export-images.js';
 import { notify } from '../shared/dialogs.js';
 import { generateVideoWebCodecs } from './export-slideshow.js';
+import { beginExportReport, endExportReport } from '../shared/dialogs.js';
 
 export const enableImageToggle = document.getElementById('enableImageToggle');
 
@@ -105,36 +106,41 @@ document.getElementById('unifiedKenBurns').addEventListener('input', (e) => {
 document.getElementById('unifiedExportConfirm').addEventListener('click', async () => {
   unifiedExportModal.classList.remove('open');
   let hasExported = false;
-
-  if (isImageExportEnabled) {
-    const selectedImgFolders = Array.from(document.querySelectorAll('#imageFolderSelectionList input:checked')).map(cb => cb.value);
-    if (selectedImgFolders.length > 0) {
-        const imageFormat = document.getElementById('unifiedExportFormat').value;
-        const structure = document.getElementById('unifiedExportStructure').value;
-        await processImagesCustom(imageFormat, structure, selectedImgFolders, {
-          quality: parseInt(document.getElementById('unifiedExportQuality').value, 10) / 100,
-          suffix: document.getElementById('unifiedExportSuffix').value.replace(/[\\/:*?"<>|]/g, '_')
-        });
-        hasExported = true;
+  beginExportReport();
+  try {
+    if (isImageExportEnabled) {
+      const selectedImgFolders = Array.from(document.querySelectorAll('#imageFolderSelectionList input:checked')).map(cb => cb.value);
+      if (selectedImgFolders.length > 0) {
+          const imageFormat = document.getElementById('unifiedExportFormat').value;
+          const structure = document.getElementById('unifiedExportStructure').value;
+          await processImagesCustom(imageFormat, structure, selectedImgFolders, {
+            quality: parseInt(document.getElementById('unifiedExportQuality').value, 10) / 100,
+            suffix: document.getElementById('unifiedExportSuffix').value.replace(/[\\/:*?"<>|]/g, '_')
+          });
+          hasExported = true;
+      }
     }
-  }
 
-  if (isVideoExportEnabled) {
-    const selectedVidFolders = Array.from(document.querySelectorAll('#videoFolderSelectionList input:checked')).map(cb => cb.value);
-    if (selectedVidFolders.length > 0) {
-        const duration = parseFloat(document.getElementById('unifiedSlideDuration').value);
-        const transition = document.getElementById('unifiedTransitionType').value;
-        const kenBurnsPercent = S.isKenBurnsEnabled ? parseFloat(document.getElementById('unifiedKenBurns').value) : 0;
+    if (isVideoExportEnabled) {
+      const selectedVidFolders = Array.from(document.querySelectorAll('#videoFolderSelectionList input:checked')).map(cb => cb.value);
+      if (selectedVidFolders.length > 0) {
+          const duration = parseFloat(document.getElementById('unifiedSlideDuration').value);
+          const transition = document.getElementById('unifiedTransitionType').value;
+          const kenBurnsPercent = S.isKenBurnsEnabled ? parseFloat(document.getElementById('unifiedKenBurns').value) : 0;
 
-        if (!("VideoEncoder" in window)) {
-            notify("Votre navigateur ne supporte pas WebCodecs. Utilisez un navigateur basé sur Chromium ou un Safari récent.");
-            return;
-        }
-        await generateVideoWebCodecs(selectedVidFolders, duration, transition, kenBurnsPercent);
-        hasExported = true;
+          if (!("VideoEncoder" in window)) {
+              notify("Votre navigateur ne supporte pas WebCodecs. Utilisez un navigateur basé sur Chromium ou un Safari récent.");
+              return;
+          }
+          await generateVideoWebCodecs(selectedVidFolders, duration, transition, kenBurnsPercent);
+          hasExported = true;
+      }
     }
-  }
   
+  } finally {
+    endExportReport();
+  }
+
   if (!hasExported) {
       showStatus("Aucun dossier sélectionné (ou aucun type d'export activé).", "error");
       setTimeout(hideStatus, 4000);

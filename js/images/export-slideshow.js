@@ -1,4 +1,6 @@
 import { showStatus } from './dom.js';
+import { reportExport } from '../shared/dialogs.js';
+import { formatBytes } from './export-images.js';
 import { S, getItem, items } from './state.js';
 import { dimsOf } from './dims.js';
 import { computeVideoBitrate, getSupportedVideoEncoderConfig } from '../shared/video-utils.js';
@@ -14,7 +16,9 @@ export async function generateVideoWebCodecs(targetFolders, durationInSeconds, t
     await generateVideoWebCodecsInner(targetFolders, durationInSeconds, transitionType, kenBurnsPercent, state);
   } catch (e) {
     console.error("Export diaporama échoué :", e);
-    showStatus(`Échec de l'export vidéo : ${e && e.message ? e.message : 'erreur inconnue'}`, 'error');
+    const reason = e && e.message ? e.message : 'erreur inconnue';
+    showStatus(`Échec de l'export vidéo : ${reason}`, 'error');
+    reportExport({ type: 'error', lines: ['Le diaporama vidéo n\'a pas pu être créé.'], errors: [reason] });
     document.getElementById('progressWrap').classList.remove('visible');
     progressBar.style.background = originalProgressBg;
   } finally {
@@ -278,9 +282,12 @@ export async function generateVideoWebCodecsInner(targetFolders, durationInSecon
     a.download = 'diaporamas_video_H264.zip';
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 100);
-    showStatus("Séquences MP4 exportées !", 'success');
+    const count = Object.keys(zip.files).length;
+    showStatus(`${count} diaporama(s) MP4 exporté(s) ! (${formatBytes(blob.size)})`, 'success');
+    reportExport({ type: 'success', lines: [`${count} diaporama(s) MP4 H.264 — ${formatBytes(blob.size)}`, 'Fichier : diaporamas_video_H264.zip'] });
   } catch (e) {
     showStatus('Erreur lors de la création du ZIP vidéo.', 'error');
+    reportExport({ type: 'error', lines: ['Le ZIP des diaporamas n\'a pas pu être créé.'] });
     console.error(e);
   }
 

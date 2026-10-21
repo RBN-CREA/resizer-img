@@ -1,4 +1,5 @@
 import { APP } from './config.js';
+import { pixelConfetti } from './pixel.js';
 
 // Message non bloquant (remplace alert())
 export let notifyTimer = null;
@@ -112,4 +113,70 @@ export function confirmDialog(title, message, okLabel = 'Confirmer') {
     document.body.appendChild(overlay);
     overlay.querySelector('[data-act="cancel"]').focus();
   });
+}
+
+// ---------- Fenêtre de notification de fin d'export ----------
+// Les exports signalent leur résultat avec reportExport(). Pendant un export combiné (images + diaporama),
+// beginExportReport() / endExportReport() regroupent tout dans une seule fenêtre affichée à la fin.
+let collectedReports = null;
+
+export function beginExportReport() {
+  collectedReports = [];
+}
+
+export function reportExport(entry) {
+  if (collectedReports) collectedReports.push(entry);
+  else showExportResult([entry]);
+}
+
+export function endExportReport() {
+  const entries = collectedReports;
+  collectedReports = null;
+  if (entries && entries.length) showExportResult(entries);
+}
+
+// entry : { type: 'success' | 'error', lines: string[], errors?: string[] }
+function showExportResult(entries) {
+  const okCount = entries.filter(e => e.type === 'success').length;
+  const type = okCount === entries.length ? 'success' : (okCount === 0 ? 'error' : 'warning');
+  const title = { success: 'Export terminé !', warning: 'Export terminé avec des erreurs', error: 'Export échoué' }[type];
+  const lines = entries.flatMap(e => e.lines || []);
+  const errors = entries.flatMap(e => e.errors || []);
+
+  const previous = document.activeElement;
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay open px-result';
+  overlay.setAttribute('role', 'alertdialog');
+  overlay.setAttribute('aria-modal', 'true');
+  overlay.setAttribute('aria-labelledby', 'exportResultTitle');
+  overlay.innerHTML = `
+    <div class="modal px-dialog px-result-box" data-type="${type}">
+      <div class="px-result-icon" aria-hidden="true"></div>
+      <h2 class="px-result-title" id="exportResultTitle"></h2>
+      <ul class="px-result-lines"></ul>
+      <ul class="px-result-errors"></ul>
+      <button type="button" class="px-btn" data-act="ok">OK</button>
+    </div>`;
+  overlay.querySelector('.px-result-title').textContent = title;
+  const fill = (sel, items) => {
+    const ul = overlay.querySelector(sel);
+    items.forEach(t => { const li = document.createElement('li'); li.textContent = t; ul.appendChild(li); });
+    if (!items.length) ul.remove();
+  };
+  fill('.px-result-lines', lines);
+  fill('.px-result-errors', errors);
+
+  const close = () => {
+    document.removeEventListener('keydown', onKey, true);
+    overlay.remove();
+    if (previous && previous.focus && document.contains(previous)) previous.focus();
+  };
+  const onKey = (e) => {
+    if (e.key === 'Escape' || e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); close(); }
+  };
+  document.addEventListener('keydown', onKey, true);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay || e.target.closest('[data-act="ok"]')) close(); });
+  document.body.appendChild(overlay);
+  overlay.querySelector('[data-act="ok"]').focus();
+  if (type !== 'error') pixelConfetti();
 }

@@ -1,7 +1,7 @@
 import { computeVideoBitrate, getSupportedVideoEncoderConfig, loadVideoMetadata, seekVideo } from '../shared/video-utils.js';
 import { APP } from '../shared/config.js';
 import { drawVideoFrame } from './preview.js';
-import { notify } from '../shared/dialogs.js';
+import { notify, reportExport } from '../shared/dialogs.js';
 import { V } from './state.js';
 import { hideVideoStatus, showVideoStatus } from './status.js';
 import { formatEta } from './import.js';
@@ -278,8 +278,12 @@ export async function runVideoExportMultiple(isFastExport) {
     }
 
     // Un seul fichier : téléchargement direct. Plusieurs : un ZIP (les navigateurs bloquent les téléchargements en rafale)
+    let outputName = null;
+    let outputSize = 0;
     if (exported.length === 1) {
-        downloadBlob(exported[0].blob, exported[0].name);
+        outputName = exported[0].name;
+        outputSize = exported[0].blob.size;
+        downloadBlob(exported[0].blob, outputName);
     } else if (exported.length > 1) {
         showVideoStatus('Création du ZIP...', 'success');
         const zip = new JSZip();
@@ -290,16 +294,29 @@ export async function runVideoExportMultiple(isFastExport) {
             used.add(n.toLowerCase());
             zip.file(n, blob);
         });
-        downloadBlob(await zip.generateAsync({ type: 'blob', compression: 'STORE', streamFiles: true }), 'videos_broadcast.zip');
+        const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'STORE', streamFiles: true });
+        outputName = 'videos_broadcast.zip';
+        outputSize = zipBlob.size;
+        downloadBlob(zipBlob, outputName);
     }
 
     progressWrap.classList.remove('visible');
+    const sizeText = outputSize >= 1048576 ? (outputSize / 1048576).toFixed(1).replace('.', ',') + ' Mo' : Math.max(1, Math.round(outputSize / 1024)) + ' Ko';
     if (failures.length) {
         showVideoStatus(`Export terminé avec ${failures.length} échec(s) : ${failures.join(' ; ')}`, "error");
         setTimeout(hideVideoStatus, 12000);
     } else {
-        showVideoStatus(`Export Broadcast Multiple terminé avec succès !`, "success");
+        showVideoStatus(`${exported.length} vidéo(s) exportée(s) avec succès ! (${sizeText})`, "success");
         setTimeout(hideVideoStatus, 4000);
+    }
+    if (exported.length) {
+        reportExport({
+            type: failures.length ? 'error' : 'success',
+            lines: [`${exported.length} vidéo(s) MP4 H.264 / AAC — ${sizeText}`, `Fichier : ${outputName}`],
+            errors: failures.map(f => `Échec : ${f}`)
+        });
+    } else if (failures.length) {
+        reportExport({ type: 'error', lines: ['Aucune vidéo n\'a pu être exportée.'], errors: failures.map(f => `Échec : ${f}`) });
     }
 }
 

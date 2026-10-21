@@ -7,9 +7,9 @@
   <meta name="theme-color" content="#0a0a0f">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236366f1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='3' width='18' height='18' rx='2'/%3E%3Ccircle cx='8.5' cy='8.5' r='1.5'/%3E%3Cpath d='m21 15-5-5L5 21'/%3E%3C/svg%3E">
   <script>
-    // Thème pixel art par défaut (voir js/ui/theme.js) : posé avant l'affichage pour éviter un flash
-    try { if (localStorage.getItem('resizeStudio.theme') !== 'classic') document.documentElement.classList.add('px-theme'); }
-    catch (e) { document.documentElement.classList.add('px-theme'); }
+    // Thème classique par défaut ; le thème pixel art est optionnel (voir js/ui/theme.js). Posé avant l'affichage pour éviter un flash.
+    try { if (localStorage.getItem('resizeStudio.theme') === 'pixel') document.documentElement.classList.add('px-theme'); }
+    catch (e) { /* stockage indisponible : thème classique */ }
   </script>
   <title>Resize Studio — Redimensionneur d'images & Montage Vidéo Broadcast</title>
   <!-- Bibliothèques hébergées dans le dépôt (voir vendor/README.md) : l'application fonctionne sans CDN -->
@@ -64,7 +64,7 @@
         </button>
       </div>
 
-      <button type="button" class="theme-toggle" id="themeToggle" aria-pressed="true" title="Basculer entre le style pixel art et le style classique">Style : pixel</button>
+      <button type="button" class="theme-toggle" id="themeToggle" aria-pressed="false" title="Basculer entre le style classique et le style pixel art">Style : classique</button>
     </header>
 
     <main class="card">
