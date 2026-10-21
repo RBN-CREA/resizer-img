@@ -43,7 +43,8 @@ Le code est en modules ES (`<script type="module">`) : il doit être servi en HT
 
 ```
 index.html              page et structure
-css/                    base, components, layout, gallery, sidebar, status, modals, video, feedback, responsive
+css/                    fonts, base, components, layout, gallery, sidebar, status, modals, video, feedback, responsive
+vendor/                 bibliothèques tierces, modèle de détection de visages, police Inter
 js/main.js              point d'entrée
 js/shared/              réglages (APP), échappement HTML, boîtes de dialogue, utilitaires d'encodage vidéo
 js/images/              onglet Images
@@ -63,4 +64,4 @@ js/video/               onglet Vidéos : import, analyse, liste, aperçu, régla
 js/ui/                  onglets, accessibilité, détection WebCodecs, préférences
 ```
 
-Bibliothèques chargées depuis des CDN (versions fixées, intégrité vérifiée par SRI) : JSZip, face-api, smartcrop, mp4-muxer.
+Bibliothèques (JSZip, face-api et son modèle, smartcrop, mp4-muxer) et police Inter hébergées dans `vendor/` : l'application ne fait aucune requête vers un service externe (ni CDN, ni Google Fonts). Détails et licences dans `vendor/README.md`.

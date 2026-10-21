@@ -7,18 +7,18 @@
   <meta name="theme-color" content="#0a0a0f">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236366f1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='3' width='18' height='18' rx='2'/%3E%3Ccircle cx='8.5' cy='8.5' r='1.5'/%3E%3Cpath d='m21 15-5-5L5 21'/%3E%3C/svg%3E">
   <title>Resize Studio — Redimensionneur d'images & Montage Vidéo Broadcast</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG" crossorigin="anonymous"></script>
-  
-  <!-- IA Détection de Visage -->
-  <script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/dist/face-api.js" integrity="sha384-M5nePoB6/w/a9JhtegEibSLGiJy/+QMZZMfvcxjWVCQW/HPwrQ7i21V/Px/8AyVA" crossorigin="anonymous"></script>
-  <!-- IA Détection de Sujet / Contraste -->
-  <script defer src="https://unpkg.com/smartcrop@2.0.5/smartcrop.js" integrity="sha384-fmGdARkBhudeaINzLQk8ABdsdI3AK++OtxbPyiSEW7+QldWLexH87+KBnd6O+IET" crossorigin="anonymous"></script>
-  <!-- Muxer MP4 pour structurer le fichier pour QuickTime/DaVinci/Mélangeurs Vidéo -->
-  <script defer src="https://unpkg.com/mp4-muxer@5.2.2/build/mp4-muxer.js" integrity="sha384-wr0AQH9RBAKio/g7bHM5245MBCU5B/b0Y9u42cTxRYQQJXKEijZvWEJKL9JG26hs" crossorigin="anonymous"></script>
+  <!-- Bibliothèques hébergées dans le dépôt (voir vendor/README.md) : l'application fonctionne sans CDN -->
+  <script defer src="vendor/jszip.min.js"></script>
 
+  <!-- IA Détection de Visage -->
+  <script defer src="vendor/face-api.js"></script>
+  <!-- IA Détection de Sujet / Contraste -->
+  <script defer src="vendor/smartcrop.js"></script>
+  <!-- Muxer MP4 pour structurer le fichier pour QuickTime/DaVinci/Mélangeurs Vidéo -->
+  <script defer src="vendor/mp4-muxer.js"></script>
+
+  <link rel="preload" href="vendor/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/fonts.css">
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/components.css">
   <link rel="stylesheet" href="css/layout.css">

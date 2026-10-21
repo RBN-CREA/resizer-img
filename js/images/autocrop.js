@@ -10,7 +10,7 @@ export function loadFaceAI() {
   if (!faceAIPromise) {
     faceAIPromise = (async () => {
       try {
-        const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model/';
+        const MODEL_URL = 'vendor/models'; // hébergé dans le dépôt
         await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
         isFaceApiLoaded = true;
       } catch (err) {
