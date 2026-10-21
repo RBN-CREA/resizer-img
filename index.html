@@ -7,14 +7,14 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG" crossorigin="anonymous"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG" crossorigin="anonymous"></script>
   
   <!-- IA Détection de Visage -->
-  <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/dist/face-api.js" integrity="sha384-M5nePoB6/w/a9JhtegEibSLGiJy/+QMZZMfvcxjWVCQW/HPwrQ7i21V/Px/8AyVA" crossorigin="anonymous"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/dist/face-api.js" integrity="sha384-M5nePoB6/w/a9JhtegEibSLGiJy/+QMZZMfvcxjWVCQW/HPwrQ7i21V/Px/8AyVA" crossorigin="anonymous"></script>
   <!-- IA Détection de Sujet / Contraste -->
-  <script src="https://unpkg.com/smartcrop@2.0.5/smartcrop.js" integrity="sha384-fmGdARkBhudeaINzLQk8ABdsdI3AK++OtxbPyiSEW7+QldWLexH87+KBnd6O+IET" crossorigin="anonymous"></script>
+  <script defer src="https://unpkg.com/smartcrop@2.0.5/smartcrop.js" integrity="sha384-fmGdARkBhudeaINzLQk8ABdsdI3AK++OtxbPyiSEW7+QldWLexH87+KBnd6O+IET" crossorigin="anonymous"></script>
   <!-- Muxer MP4 pour structurer le fichier pour QuickTime/DaVinci/Mélangeurs Vidéo -->
-  <script src="https://unpkg.com/mp4-muxer@5.2.2/build/mp4-muxer.js" integrity="sha384-wr0AQH9RBAKio/g7bHM5245MBCU5B/b0Y9u42cTxRYQQJXKEijZvWEJKL9JG26hs" crossorigin="anonymous"></script>
+  <script defer src="https://unpkg.com/mp4-muxer@5.2.2/build/mp4-muxer.js" integrity="sha384-wr0AQH9RBAKio/g7bHM5245MBCU5B/b0Y9u42cTxRYQQJXKEijZvWEJKL9JG26hs" crossorigin="anonymous"></script>
 
   <style>
     :root {
@@ -2130,6 +2130,77 @@
       return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}:${String(frames).padStart(2, '0')}`;
     }
 
+    // Mesure la luminance moyenne des images d'une vidéo.
+    // Voie rapide : lecture accélérée + requestVideoFrameCallback (chaque image présentée).
+    // Repli : sauts de lecture toutes les 0,1 s.
+    async function collectLuminanceSamples(video, duration, onProgress) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 160;
+      canvas.height = 90;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+      const measure = () => {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+        let total = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          total += 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+        }
+        return total / (data.length / 4);
+      };
+
+      if ('requestVideoFrameCallback' in video) {
+        try {
+          const samples = await new Promise((resolve, reject) => {
+            const out = [];
+            let lastFrameAt = performance.now();
+            let finished = false;
+            const watchdog = setInterval(() => {
+              if (performance.now() - lastFrameAt > 8000) finish(new Error('Lecture bloquée'));
+            }, 1000);
+
+            function finish(err) {
+              if (finished) return;
+              finished = true;
+              clearInterval(watchdog);
+              video.removeEventListener('ended', onEnded);
+              video.pause();
+              video.playbackRate = 1;
+              err ? reject(err) : resolve(out);
+            }
+            const onEnded = () => finish();
+            const onFrame = (now, meta) => {
+              if (finished) return;
+              lastFrameAt = performance.now();
+              out.push({ t: meta.mediaTime, lum: measure() });
+              if (onProgress && out.length % 10 === 0) onProgress(Math.min(1, meta.mediaTime / duration));
+              video.requestVideoFrameCallback(onFrame);
+            };
+
+            video.addEventListener('ended', onEnded);
+            video.playbackRate = 4;
+            video.currentTime = 0;
+            video.requestVideoFrameCallback(onFrame);
+            video.play().catch(finish);
+          });
+          if (samples.length >= Math.max(2, duration * 2)) return samples;
+        } catch (e) {
+          console.warn('Analyse par lecture impossible, repli sur les sauts de lecture :', e);
+        }
+      }
+
+      const samples = [];
+      const step = 0.1;
+      const totalSteps = Math.ceil(duration / step);
+      video.currentTime = 0;
+      for (let k = 0, t = 0; t < duration; k++, t = k * step) {
+        await seekVideo(video, t);
+        samples.push({ t, lum: measure() });
+        if (onProgress && k % 5 === 0) onProgress(k / totalSteps);
+      }
+      return samples;
+    }
+
     async function analyzeVideoFile(file, onProgressCallback) {
       return new Promise((resolve) => {
         const video = document.createElement('video');
@@ -2148,37 +2219,16 @@
           try {
           const duration = video.duration;
           if (!isFinite(duration) || duration <= 0) throw new Error('Durée invalide');
-          const canvas = document.createElement('canvas');
-          canvas.width = 320;
-          canvas.height = 180;
-          const ctx = canvas.getContext('2d', { willReadFrequently: true });
-
           let anomalies = [];
           let rawBlackSegments = [];
           let inBlack = false;
           let startBlack = 0;
-          const step = 0.2; 
-          
-          const totalSteps = Math.ceil(duration / step);
-          let currentStep = 0;
+          let currentWhite = null;
 
-          for (let t = 0; t < duration; t += step) {
-            await seekVideo(video, t);
+          // Une mesure de luminance par image réellement présentée (aucun flash manqué)
+          const samples = await collectLuminanceSamples(video, duration, onProgressCallback);
 
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const data = imgData.data;
-
-            let totalLuminance = 0;
-            let pixelCount = data.length / 4;
-
-            for (let i = 0; i < data.length; i += 4) {
-              const lum = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
-              totalLuminance += lum;
-            }
-
-            const avgLum = totalLuminance / pixelCount;
-
+          for (const { t, lum: avgLum } of samples) {
             if (avgLum < 8) {
               if (!inBlack) { inBlack = true; startBlack = t; }
             } else {
@@ -2186,16 +2236,18 @@
                   inBlack = false;
                   rawBlackSegments.push({ start: startBlack, end: t });
               }
-              if (avgLum > 248) {
-                  anomalies.push({ type: 'white', start: t, end: t, tcIn: formatTimecode(t), tcOut: formatTimecode(t), keep: false });
+            }
+
+            // Les images blanches consécutives forment un seul segment
+            if (avgLum > 248) {
+              if (currentWhite && t - currentWhite.end <= 0.25) currentWhite.end = t;
+              else {
+                currentWhite = { type: 'white', start: t, end: t, keep: false };
+                anomalies.push(currentWhite);
               }
             }
-            
-            currentStep++;
-            if (currentStep % 5 === 0 && onProgressCallback) {
-                onProgressCallback(currentStep / totalSteps);
-            }
           }
+          anomalies.forEach(a => { a.tcIn = formatTimecode(a.start); a.tcOut = formatTimecode(a.end); });
           
           if (inBlack) {
             rawBlackSegments.push({ start: startBlack, end: duration });
@@ -2396,13 +2448,22 @@
             targetH = parseInt(document.getElementById('videoCustomH').value) || 1080;
         }
 
-        previewCanvas.width = targetW;
-        previewCanvas.height = targetH;
+        if (previewCanvas.width !== targetW || previewCanvas.height !== targetH) {
+          previewCanvas.width = targetW;
+          previewCanvas.height = targetH;
+        }
         previewCanvas.style.aspectRatio = `${targetW} / ${targetH}`;
 
         if (mainPlayer.readyState >= 2) {
             drawVideoFrame(previewCtx, mainPlayer, vid, targetW, targetH);
         }
+    }
+
+    let previewUpdateQueued = false;
+    function schedulePreviewUpdate() {
+      if (previewUpdateQueued) return;
+      previewUpdateQueued = true;
+      requestAnimationFrame(() => { previewUpdateQueued = false; updatePreviewCanvas(); });
     }
 
     function renderVideoLoop() {
@@ -2421,28 +2482,28 @@
         vid.shadow.enabled = !vid.shadow.enabled;
         vShadowToggle.classList.toggle('on', vid.shadow.enabled);
         vShadowGroup.classList.toggle('visible', vid.shadow.enabled);
-        if(mainPlayer.paused) updatePreviewCanvas();
+        if (mainPlayer.paused) schedulePreviewUpdate();
     });
 
     document.getElementById('videoShadowOpacitySlider').addEventListener('input', (e) => {
         if(activeVideoIndex === -1) return;
         analyzedVideos[activeVideoIndex].shadow.opacity = parseFloat(e.target.value);
         document.getElementById('videoShadowOpacityValue').textContent = Math.round(e.target.value * 100) + '%';
-        if(mainPlayer.paused) updatePreviewCanvas();
+        if (mainPlayer.paused) schedulePreviewUpdate();
     });
 
     document.getElementById('videoShadowDirectionSlider').addEventListener('input', (e) => {
         if(activeVideoIndex === -1) return;
         analyzedVideos[activeVideoIndex].shadow.direction = parseInt(e.target.value);
         document.getElementById('videoShadowDirectionValue').textContent = e.target.value + '°';
-        if(mainPlayer.paused) updatePreviewCanvas();
+        if (mainPlayer.paused) schedulePreviewUpdate();
     });
 
     document.getElementById('videoShadowDistanceSlider').addEventListener('input', (e) => {
         if(activeVideoIndex === -1) return;
         analyzedVideos[activeVideoIndex].shadow.distance = parseInt(e.target.value);
         document.getElementById('videoShadowDistanceValue').textContent = e.target.value + 'px';
-        if(mainPlayer.paused) updatePreviewCanvas();
+        if (mainPlayer.paused) schedulePreviewUpdate();
     });
 
     const vBlurToggle = document.getElementById('videoBlurToggle');
@@ -2454,14 +2515,14 @@
         vid.blur.enabled = !vid.blur.enabled;
         vBlurToggle.classList.toggle('on', vid.blur.enabled);
         vBlurGroup.classList.toggle('visible', vid.blur.enabled);
-        if(mainPlayer.paused) updatePreviewCanvas();
+        if (mainPlayer.paused) schedulePreviewUpdate();
     });
 
     document.getElementById('videoBlurIntensitySlider').addEventListener('input', (e) => {
         if(activeVideoIndex === -1) return;
         analyzedVideos[activeVideoIndex].blur.intensity = parseInt(e.target.value);
         document.getElementById('videoBlurIntensityValue').textContent = e.target.value + 'px';
-        if(mainPlayer.paused) updatePreviewCanvas();
+        if (mainPlayer.paused) schedulePreviewUpdate();
     });
 
     document.getElementById('videoZoomSlider').addEventListener('input', (e) => {
@@ -2469,14 +2530,14 @@
         const val = parseFloat(e.target.value);
         analyzedVideos[activeVideoIndex].zoom = val;
         document.getElementById('videoZoomValue').textContent = Math.round(val * 100) + '%';
-        if (mainPlayer.paused) updatePreviewCanvas();
+        if (mainPlayer.paused) schedulePreviewUpdate();
     });
 
     document.getElementById('videoCenterBtn').addEventListener('click', () => {
         if (activeVideoIndex === -1) return;
         analyzedVideos[activeVideoIndex].offsetX = 0;
         analyzedVideos[activeVideoIndex].offsetY = 0;
-        if (mainPlayer.paused) updatePreviewCanvas();
+        if (mainPlayer.paused) schedulePreviewUpdate();
     });
 
     previewCanvas.addEventListener('mousedown', (e) => {
@@ -2497,7 +2558,7 @@
         vid.offsetY = (vid.offsetY || 0) + (e.clientY - videoDragStart.y) * scaleY;
         
         videoDragStart = { x: e.clientX, y: e.clientY };
-        if (mainPlayer.paused) updatePreviewCanvas();
+        if (mainPlayer.paused) schedulePreviewUpdate();
     });
 
     window.addEventListener('mouseup', () => { isVideoDragging = false; });
@@ -2696,6 +2757,7 @@
 
     document.getElementById('clearVideoBtn').addEventListener('click', async () => {
       if (analyzedVideos.length > 0 && !(await confirmDialog('Tout effacer ?', `${analyzedVideos.length} vidéo(s) et leurs réglages seront retirées de l'espace de travail.`, 'Tout effacer'))) return;
+      analyzedVideos.forEach(v => URL.revokeObjectURL(v.url));
       analyzedVideos = [];
       activeVideoIndex = -1;
       mainPlayer.pause();
@@ -2769,7 +2831,10 @@
 
             const canvas = document.createElement('canvas');
             canvas.width = targetW; canvas.height = targetH;
-            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            const ctx = canvas.getContext('2d');
+            const lumCanvas = document.createElement('canvas');
+            lumCanvas.width = 64; lumCanvas.height = 36;
+            const lumCtx = lumCanvas.getContext('2d', { willReadFrequently: true });
 
             // --- 3. MUXER (avec piste audio si besoin) ---
             let muxerConfig = {
@@ -2825,9 +2890,11 @@
                 drawVideoFrame(ctx, videoElem, vidData, targetW, targetH);
 
                 if (!isFastExport) {
-                    const imgData = ctx.getImageData(0, 0, targetW, targetH).data;
+                    // Luminance mesurée sur une miniature (évite de relire l'image pleine résolution)
+                    lumCtx.drawImage(canvas, 0, 0, lumCanvas.width, lumCanvas.height);
+                    const imgData = lumCtx.getImageData(0, 0, lumCanvas.width, lumCanvas.height).data;
                     let totalLum = 0; let pixelCount = 0;
-                    for (let i = 0; i < imgData.length; i += 64) {
+                    for (let i = 0; i < imgData.length; i += 4) {
                         totalLum += 0.299 * imgData[i] + 0.587 * imgData[i+1] + 0.114 * imgData[i+2];
                         pixelCount++;
                     }
@@ -2845,12 +2912,10 @@
                 const duration = (1 / fps) * 1_000_000;
 
                 // Traitement et Encodage Vidéo
-                const bitmap = await createImageBitmap(canvas);
-                const frame = new VideoFrame(bitmap, { timestamp, duration });
+                const frame = new VideoFrame(canvas, { timestamp, duration });
 
                 videoEncoder.encode(frame, { keyFrame: exportFrameCounter % fps === 0 });
                 frame.close();
-                bitmap.close();
 
                 // Évite d'accumuler trop de frames en attente dans l'encodeur
                 while (videoEncoder.encodeQueueSize > 20 && !encoderError) {
@@ -3190,14 +3255,25 @@
     };
 
     let isFaceApiLoaded = false;
-    async function loadFaceAI() {
-      try {
-        const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model/';
-        await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
-        isFaceApiLoaded = true;
-      } catch (err) {}
+    let faceAIPromise = null;
+    function loadFaceAI() {
+      if (!faceAIPromise) {
+        faceAIPromise = (async () => {
+          try {
+            const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model/';
+            await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+            isFaceApiLoaded = true;
+          } catch (err) {
+            console.warn("Détection de visages indisponible (modèle non chargé) :", err);
+          }
+        })();
+      }
+      return faceAIPromise;
     }
-    window.addEventListener('load', loadFaceAI);
+    // Chargé en tâche de fond une fois la page prête ; attendu (8 s max) avant le premier recadrage
+    window.addEventListener('load', () => {
+      (window.requestIdleCallback || setTimeout)(loadFaceAI);
+    });
 
     async function runAutoCropLogic(img, preset, zoomLvl, dims) {
       dims = dims || presetDimensions[preset] || presetDimensions['1920x1080'];
@@ -3205,6 +3281,9 @@
       let subjectY = img.height / 2;
       let method = 'center';
 
+      if (!isFaceApiLoaded) {
+        await Promise.race([loadFaceAI(), new Promise(res => setTimeout(res, 8000))]);
+      }
       if (isFaceApiLoaded) {
         try {
           const detection = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions());
@@ -3804,7 +3883,7 @@
         const canvas = document.createElement('canvas');
         canvas.width = dims.w;
         canvas.height = dims.h;
-        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        const ctx = canvas.getContext('2d');
 
         // Dessine une slide dans le cadre de la vidéo, quelle que soit sa propre taille
         const slideBuffers = new Map();
@@ -3946,16 +4025,14 @@
               }
             }
 
-            const bitmap = await createImageBitmap(canvas);
             const timestamp = (frameCounter / fps) * 1_000_000;
             const duration = (1 / fps) * 1_000_000;
-            const videoFrame = new VideoFrame(bitmap, { timestamp, duration });
+            const videoFrame = new VideoFrame(canvas, { timestamp, duration });
             
             const isKeyFrame = (frameCounter % fps === 0);
             videoEncoder.encode(videoFrame, { keyFrame: isKeyFrame });
             
             videoFrame.close();
-            bitmap.close();
 
             // Évite d'accumuler trop de frames en attente dans l'encodeur
             while (videoEncoder.encodeQueueSize > 20 && !encoderError) {
@@ -4489,11 +4566,40 @@
       updateGallerySelectionUI();
     }
 
+    const THUMB_MAX_W = 360;
+    const THUMB_SOURCE_MAX = 720;
+
+    // Version réduite de l'image, décodée une seule fois puis réutilisée à chaque rafraîchissement de la galerie
+    function getThumbSource(it) {
+      if (!it.thumb) {
+        it.thumb = (async () => {
+          try {
+            const bmp = await createImageBitmap(it.file);
+            const k = Math.min(1, THUMB_SOURCE_MAX / Math.max(bmp.width, bmp.height));
+            const c = document.createElement('canvas');
+            c.width = Math.max(1, Math.round(bmp.width * k));
+            c.height = Math.max(1, Math.round(bmp.height * k));
+            c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+            bmp.close();
+            return c;
+          } catch (e) {
+            console.warn('Miniature indisponible :', it.file.name, e);
+            return null;
+          }
+        })();
+      }
+      return it.thumb;
+    }
+
     function renderGalleryItem(id, container) {
       const it = getItem(id);
       const file = it.file;
       const preset = it.preset || '1920x1080';
       const dims = dimsOf(it);
+      // Miniature : canvas réduit (≤ 360 px de large) au lieu de la pleine résolution
+      const thumbScale = Math.min(1, THUMB_MAX_W / dims.w);
+      const thumbW = Math.max(1, Math.round(dims.w * thumbScale));
+      const thumbH = Math.max(1, Math.round(dims.h * thumbScale));
       
       const item = document.createElement('div');
       item.className = 'gallery-item';
@@ -4501,7 +4607,7 @@
       if (activeSelection.has(id)) item.classList.add('selected');
 
       item.innerHTML = `
-        <div class="gallery-item-preview"><canvas width="${dims.w}" height="${dims.h}"></canvas></div>
+        <div class="gallery-item-preview"><canvas width="${thumbW}" height="${thumbH}"></canvas></div>
         <div class="gallery-item-label">
           <div class="file-name" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</div>
           <div class="preset-tag">${presetLabels[preset] || preset}</div>
@@ -4513,19 +4619,17 @@
       
       container.appendChild(item);
 
-      const img = new Image();
-      img.onload = () => {
+      getThumbSource(it).then(src => {
+        if (!src || !item.isConnected) return;
         const { crop, shadow, blur, bgColor } = it;
         const isBlurPreset = (preset === 'blur');
-
         const canvas = item.querySelector('canvas');
         if (canvas) {
           const ctx = canvas.getContext('2d');
-          renderImage(ctx, img, dims, crop, shadow, blur, bgColor, isBlurPreset, true);
+          ctx.scale(thumbScale, thumbScale);
+          renderImage(ctx, src, dims, crop, shadow, blur, bgColor, isBlurPreset, true);
         }
-        URL.revokeObjectURL(img.src);
-      };
-      img.src = URL.createObjectURL(file);
+      });
 
       item.addEventListener('mousedown', e => e.stopPropagation()); 
       item.addEventListener('click', (e) => {
@@ -4716,14 +4820,24 @@
       folderInput.value = '';
     }
 
+    // Regroupe les demandes de redessin (curseurs, glisser) : au plus un rendu par image affichée
+    let previewDrawQueued = false;
     function drawCanvasPreview() {
+      if (previewDrawQueued) return;
+      previewDrawQueued = true;
+      requestAnimationFrame(() => { previewDrawQueued = false; drawCanvasPreviewNow(); });
+    }
+
+    function drawCanvasPreviewNow() {
       if (!currentImage) return;
       const preset = editingItem().preset || '1920x1080';
       const dims = dimsOf(editingItem());
       const isBlurPreset = (preset === 'blur');
 
-      cropCanvas.width = dims.w;
-      cropCanvas.height = dims.h;
+      if (cropCanvas.width !== dims.w || cropCanvas.height !== dims.h) {
+        cropCanvas.width = dims.w;
+        cropCanvas.height = dims.h;
+      }
 
       const shadow = { opacity: shadowOpacity, direction: shadowDirection, distance: shadowDistance, enabled: showShadow };
       const blur = { enabled: showBackgroundBlur, intensity: backgroundBlurIntensity, bgZoom: backgroundBlurZoom };
