@@ -1,0 +1,104 @@
+/* Sidebar fixe et indépendante */
+.sidebar {
+  padding: 20px;
+  overflow-y: auto;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  background: var(--surface-2);
+}
+
+.panel-title {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  margin-bottom: 12px;
+}
+
+.presets {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.preset-btn {
+  padding: 14px 12px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-family: inherit;
+  text-align: center;
+  transition: all var(--transition);
+  color: var(--text);
+}
+
+.preset-btn:hover {
+  border-color: var(--accent);
+  background: rgba(99, 102, 241, 0.06);
+}
+
+.preset-btn.active {
+  border-color: var(--accent);
+  background: rgba(99, 102, 241, 0.15);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.preset-btn.full { grid-column: 1 / -1; }
+
+.preset-name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  display: block;
+}
+
+.preset-dims {
+  font-size: 0.6875rem;
+  color: var(--text-dim);
+  margin-top: 4px;
+  display: block;
+}
+
+.format-select {
+  width: 100%;
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a1a1aa' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+}
+
+.format-select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.scrubbable {
+  cursor: ew-resize !important;
+}
+.scrubbable::-webkit-outer-spin-button,
+.scrubbable::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.scrubbable {
+  -moz-appearance: textfield;
+}
+
+.download-section {
+  margin-top: auto;
+  padding-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}

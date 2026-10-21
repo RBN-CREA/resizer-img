@@ -1,0 +1,20 @@
+/* Petits écrans */
+@media (max-width: 900px) {
+  body { height: auto; min-height: 100vh; overflow: auto; }
+  .app { height: auto; min-height: 100vh; padding: 12px; }
+  .header { flex-wrap: wrap; }
+  .card, .app-view, .editor-view, .editor-layout, .video-workspace, .preview-area { overflow: visible; }
+  .gallery-panel, .sidebar, .video-sidebar, .video-main-panel { height: auto; overflow: visible; border-right: none; }
+  .video-workspace { grid-template-columns: 1fr; }
+  .canvas-wrap { width: 100%; height: auto; aspect-ratio: 4 / 3; padding: 12px; }
+  .video-canvas-stage { height: 260px; }
+  .modal { max-height: 100vh; border-radius: 12px; }
+  .modal-body { overflow-y: auto; }
+  .tools { border-right: none; }
+  .modal-footer-left, .modal-footer-right { flex-wrap: wrap; }
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }

@@ -1,0 +1,38 @@
+/* Status bar globale */
+.status-bar {
+  padding: 12px 24px;
+  border-top: 1px solid var(--border);
+  display: none;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.status-bar.visible { display: flex; }
+.status-bar.success { background: var(--success-bg); }
+.status-bar.error { background: var(--error-bg); }
+
+.status-text {
+  font-size: 0.875rem;
+  font-weight: 500;
+  flex: 1;
+}
+
+.status-bar.success .status-text { color: #86efac; }
+.status-bar.error .status-text { color: #fca5a5; }
+
+.progress-wrap {
+  height: 3px;
+  background: var(--surface-3);
+  display: none;
+  flex-shrink: 0;
+}
+
+.progress-wrap.visible { display: block; }
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), #a855f7);
+  width: 0%;
+  transition: width 0.3s ease;
+}

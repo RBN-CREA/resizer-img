@@ -19,7 +19,16 @@
   <!-- Muxer MP4 pour structurer le fichier pour QuickTime/DaVinci/Mélangeurs Vidéo -->
   <script defer src="https://unpkg.com/mp4-muxer@5.2.2/build/mp4-muxer.js" integrity="sha384-wr0AQH9RBAKio/g7bHM5245MBCU5B/b0Y9u42cTxRYQQJXKEijZvWEJKL9JG26hs" crossorigin="anonymous"></script>
 
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/gallery.css">
+  <link rel="stylesheet" href="css/sidebar.css">
+  <link rel="stylesheet" href="css/status.css">
+  <link rel="stylesheet" href="css/modals.css">
+  <link rel="stylesheet" href="css/video.css">
+  <link rel="stylesheet" href="css/feedback.css">
+  <link rel="stylesheet" href="css/responsive.css">
 </head>
 <body>
   <div class="app">
@@ -681,16 +690,10 @@
   </div>
 
 
-  <!-- ================= GESTION GLOBALE DES ONGLETS ================= -->
-  <script src="js/common.js"></script>
 
-  <!-- ================= LOGIQUE VIDÉO & MONTAGE (Sécurisée et Isolée) ================= -->
-  <script src="js/video.js"></script>
 
-  <!-- ================= LOGIQUE PHOTO ORIGINALE (Sécurisée et Isolée) ================= -->
-  <script src="js/images.js"></script>
 
-  <!-- ================= ACCESSIBILITÉ & PRÉFÉRENCES ================= -->
-  <script src="js/ui.js"></script>
+
+  <script type="module" src="js/main.js"></script>
 </body>
 </html>

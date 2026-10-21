@@ -39,13 +39,28 @@ Navigateurs : l'export vidéo exige WebCodecs (Chrome / Edge, ou un Safari réce
 
 ## Structure
 
+Le code est en modules ES (`<script type="module">`) : il doit être servi en HTTP(S) (Vercel, `localhost`…), pas ouvert en double-clic.
+
 ```
-index.html        page et structure
-css/style.css     styles
-js/common.js      réglages (APP), utilitaires, encodage vidéo, boîtes de dialogue
-js/video.js       onglet Vidéos & Broadcast
-js/images.js      onglet Images (état, galerie, éditeur, exports)
-js/ui.js          accessibilité, modales, préférences
+index.html              page et structure
+css/                    base, components, layout, gallery, sidebar, status, modals, video, feedback, responsive
+js/main.js              point d'entrée
+js/shared/              réglages (APP), échappement HTML, boîtes de dialogue, utilitaires d'encodage vidéo
+js/images/              onglet Images
+  state.js              liste des images (un objet par image), sélection, état partagé
+  undo.js               annulation (Ctrl/Cmd+Z)
+  dims.js               formats, dimensions personnalisées par image
+  autocrop.js           détection de visage / sujet
+  render.js             dessin d'une image, miniatures
+  gallery.js            galerie, sélection, menu contextuel
+  import.js             import de fichiers, application des formats
+  editor.js             fenêtre d'édition (zoom, ombre, flou, repères)
+  export-dialog.js      fenêtre d'export
+  export-images.js      export ZIP d'images
+  export-slideshow.js   diaporama MP4
+  gallery-shortcuts.js  raccourcis clavier de la galerie
+js/video/               onglet Vidéos : import, analyse, liste, aperçu, réglages, export
+js/ui/                  onglets, accessibilité, détection WebCodecs, préférences
 ```
 
 Bibliothèques chargées depuis des CDN (versions fixées, intégrité vérifiée par SRI) : JSZip, face-api, smartcrop, mp4-muxer.
