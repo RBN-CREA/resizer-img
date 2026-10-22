@@ -8,3 +8,4 @@ import './list.js';
 import './preview.js';
 import './controls.js';
 import './export.js';
+import './home.js';

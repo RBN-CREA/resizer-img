@@ -5,6 +5,7 @@ import { defaultShadow } from '../shared/config.js';
 import { updatePreviewCanvas } from './preview.js';
 import { confirmDialog } from '../shared/dialogs.js';
 import { videoInput } from './import.js';
+import { refreshVideoResumeBar } from './home.js';
 
 export function updateVideoListUI() {
   const container = document.getElementById('videoListContainer');
@@ -191,5 +192,6 @@ document.getElementById('clearVideoBtn').addEventListener('click', async () => {
   previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
   document.getElementById('videoEditorView').style.display = 'none';
   document.getElementById('videoUploadView').classList.remove('hidden');
+  refreshVideoResumeBar();
   videoInput.value = '';
 });

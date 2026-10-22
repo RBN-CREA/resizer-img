@@ -2,6 +2,7 @@ import { S, activeSelection, items, restoreItems } from './state.js';
 import { APP } from '../shared/config.js';
 import { editorModal, editorView, hideStatus, showStatus, unifiedExportModal, uploadView } from './dom.js';
 import { updateGallery } from './gallery.js';
+import { refreshResumeBar } from './home.js';
 
 // --- ANNULER (Ctrl/Cmd+Z) : instantanés de l'état avant chaque action groupée ---
 export const undoStack = [];
@@ -47,6 +48,7 @@ export function undo() {
   S.lastSelectedId = null;
   uploadView.classList.toggle('hidden', items.length > 0);
   editorView.classList.toggle('active', items.length > 0);
+  refreshResumeBar();
   updateGallery();
   const toast = document.getElementById('undoToast');
   if (toast) toast.classList.remove('visible');

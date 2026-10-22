@@ -65,6 +65,14 @@
       <!-- ================= ONGLET IMAGES ================= -->
       <div class="app-view active" id="imageView">
         <section class="upload-view" id="uploadView">
+          <div class="resume-bar" id="resumeBar" hidden>
+            <button type="button" class="btn btn-primary" id="resumeBtn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+              <span id="resumeLabel">Reprendre le projet</span>
+            </button>
+            <span class="resume-hint">Ajoutez des images ci-dessous pour les ajouter au projet en cours.</span>
+          </div>
+
           <div class="dropzone" id="dropZone">
             <div class="dropzone-content">
               <div class="dropzone-icon">
@@ -92,6 +100,10 @@
         <section class="editor-view" id="editorView">
           <div class="toolbar">
             <div class="toolbar-left">
+              <button type="button" class="btn btn-ghost" id="homeBtn" title="Retour à l'accueil (import de fichiers) — votre projet est conservé">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h5v-6h4v6h5V9.5"/></svg>
+                Accueil
+              </button>
               <span class="file-count"><strong id="fileCountNum">0</strong> image(s) chargée(s)</span>
             </div>
             <div class="toolbar-right">
@@ -191,6 +203,14 @@
       <!-- ================= ONGLET VIDÉO & BROADCAST ================= -->
       <div class="app-view" id="videoView">
         <section class="upload-view" id="videoUploadView">
+          <div class="resume-bar" id="videoResumeBar" hidden>
+            <button type="button" class="btn btn-primary" id="videoResumeBtn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+              <span id="videoResumeLabel">Reprendre le projet</span>
+            </button>
+            <span class="resume-hint">Ajoutez des vidéos ci-dessous pour les ajouter au projet en cours.</span>
+          </div>
+
           <div class="dropzone" id="videoDropZone">
             <div class="dropzone-content">
               <div class="dropzone-icon">
@@ -214,6 +234,10 @@
         <section class="editor-view" id="videoEditorView" style="display: none; flex-direction: column; flex: 1; min-height: 0;">
           <div class="toolbar">
             <div class="toolbar-left">
+              <button type="button" class="btn btn-ghost" id="videoHomeBtn" title="Retour à l'accueil (import de fichiers) — votre projet est conservé">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h5v-6h4v6h5V9.5"/></svg>
+                Accueil
+              </button>
               <span class="file-count"><strong id="videoCountNum">0</strong> vidéo(s) analysée(s)</span>
             </div>
             <div class="toolbar-right">

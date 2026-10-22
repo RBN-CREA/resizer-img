@@ -6,6 +6,7 @@ import { escapeHtml } from '../shared/html.js';
 import { cropMethodLabels, dimsOf, presetLabels } from './dims.js';
 import { THUMB_MAX_W, getThumbSource, renderImage } from './render.js';
 import { openEditorModal } from './editor.js';
+import { refreshResumeBar } from './home.js';
 
 export let currentSortMode = 'folder';
 
@@ -300,6 +301,7 @@ export function resetAll() {
   S.displayOrder = [];
   uploadView.classList.remove('hidden');
   editorView.classList.remove('active');
+  refreshResumeBar();
   hideStatus();
   fileInput.value = '';
   folderInput.value = '';

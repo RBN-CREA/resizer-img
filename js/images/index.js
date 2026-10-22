@@ -12,3 +12,4 @@ import './export-dialog.js';
 import './export-slideshow.js';
 import './export-images.js';
 import './gallery-shortcuts.js';
+import './home.js';
